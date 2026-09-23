@@ -1,0 +1,1809 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>圆明园 · 万园之园 — 手势粒子盛景</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@300;500;700&display=swap" rel="stylesheet">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html,body { width:100%; height:100%; overflow:hidden; background:#f4efe1;
+    font-family:"Noto Serif SC","Songti SC","SimSun",serif; }
+  #gl { position:fixed; inset:0; display:block; }
+
+  /* ---------- 暗角氛围层 ---------- */
+  #vignette { position:fixed; inset:0; pointer-events:none; z-index:2;
+    background:radial-gradient(ellipse at center, rgba(255,252,240,0) 55%, rgba(233,219,182,.46) 100%);
+    transition:background 2s ease; }
+  body.night #vignette {
+    background:radial-gradient(ellipse at center, rgba(0,0,0,0) 48%, rgba(4,6,16,.55) 100%); }
+
+  /* ---------- 国风科技 HUD ---------- */
+  #hud { position:fixed; top:18px; left:18px; z-index:5; width:264px;
+    color:#2c3a44; border:1px solid rgba(120,110,80,.55);
+    background:linear-gradient(160deg, rgba(253,250,240,.68), rgba(243,235,215,.44));
+    backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
+    box-shadow:0 0 0 1px rgba(255,255,255,.35) inset, 0 4px 22px rgba(60,80,90,.12);
+    transition:color 2s ease, border-color 2s ease, background 2s ease; }
+  body.night #hud { color:#e8dfc8; border-color:rgba(216,196,138,.45);
+    background:linear-gradient(160deg, rgba(16,18,30,.62), rgba(10,12,22,.42)); }
+  #hud::before { content:""; position:absolute; inset:0; pointer-events:none; opacity:.5;
+    background-image:linear-gradient(rgba(120,130,140,.10) 1px, transparent 1px),
+                     linear-gradient(90deg, rgba(120,130,140,.10) 1px, transparent 1px);
+    background-size:22px 22px; }
+  .corner { position:absolute; width:26px; height:26px; pointer-events:none; z-index:2;
+    background:no-repeat center/contain; opacity:.9; }
+  .corner.tl { top:-1px; left:-1px; }
+  .corner.tr { top:-1px; right:-1px; transform:rotate(90deg); }
+  .corner.br { bottom:-1px; right:-1px; transform:rotate(180deg); }
+  .corner.bl { bottom:-1px; left:-1px; transform:rotate(270deg); }
+  #hud .title { padding:12px 16px 8px; font-size:17px; letter-spacing:6px; font-weight:700;
+    border-bottom:1px solid rgba(150,140,100,.35); display:flex; align-items:center; gap:10px; }
+  #hud .title .seal { width:22px; height:22px; flex:none; border:1px solid currentColor; border-radius:3px;
+    display:flex; align-items:center; justify-content:center; font-size:12px; letter-spacing:0; opacity:.85; }
+  #hud .rows { padding:9px 16px 11px; font-size:12px; font-weight:300; position:relative; z-index:1; }
+  #hud .row { display:flex; justify-content:space-between; align-items:center; padding:3.5px 0; letter-spacing:1.5px; }
+  #hud .row b { font-weight:500; letter-spacing:1px; }
+  #hud .row .gold { color:#b8860b; }
+  body.night #hud .row .gold { color:#f0c96a; }
+  #hud .row input[type="range"] { width:96px; accent-color:#5f8ea0; height:14px; cursor:pointer; }
+  body.night #hud .row input[type="range"] { accent-color:#d4a017; }
+  #btnMute { cursor:pointer; user-select:none; padding:0 6px; border:1px solid rgba(120,130,140,.4); }
+  #btnMute:hover { background:rgba(120,140,150,.12); }
+  #scanbar { position:absolute; left:0; right:0; height:2px; top:0; opacity:0; z-index:3;
+    background:linear-gradient(90deg, transparent, rgba(90,140,150,.85), transparent); }
+  #hud.tracking #scanbar { opacity:1; animation:scan 2.2s linear infinite; }
+  #hud.tracking { animation:pulse 2.2s ease-in-out infinite; }
+  @keyframes scan { 0%{ transform:translateY(0);} 100%{ transform:translateY(100%);} }
+  @keyframes pulse { 0%,100%{ box-shadow:0 0 0 1px rgba(255,255,255,.35) inset, 0 0 14px rgba(120,160,170,.18);}
+    50%{ box-shadow:0 0 0 1px rgba(255,255,255,.55) inset, 0 0 26px rgba(120,190,200,.38);} }
+  #statusDot { display:inline-block; width:7px; height:7px; border-radius:50%; margin-right:6px;
+    background:#9aa8b0; vertical-align:1px; transition:background .4s; }
+  #hud.tracking #statusDot { background:#3fae8c; box-shadow:0 0 8px #3fae8c; }
+
+  /* ---------- 手势指引 ---------- */
+  #tips { position:fixed; bottom:14px; left:50%; transform:translateX(-50%); z-index:5;
+    display:flex; gap:10px; flex-wrap:wrap; justify-content:center; max-width:94vw;
+    color:rgba(50,62,70,.72); font-size:11px; letter-spacing:2px; font-weight:300;
+    text-shadow:0 1px 0 rgba(255,255,255,.4); transition:color 2s; pointer-events:none; }
+  body.night #tips { color:rgba(220,228,238,.55); text-shadow:0 1px 2px rgba(0,0,0,.6); }
+  #tips span { padding:3px 10px; border:1px solid rgba(120,130,120,.28); border-radius:2px;
+    background:rgba(255,255,255,.16); backdrop-filter:blur(3px); }
+  body.night #tips span { background:rgba(10,14,24,.3); border-color:rgba(200,190,150,.22); }
+
+  /* ---------- 音频开启提示 ---------- */
+  #audioHint { position:fixed; bottom:96px; left:50%; transform:translateX(-50%); z-index:6;
+    padding:6px 22px; font-size:13px; letter-spacing:4px; color:#5a6a74; cursor:pointer;
+    border:1px solid rgba(120,130,140,.45); background:rgba(240,248,252,.75); backdrop-filter:blur(6px);
+    animation:hintPulse 2.4s ease-in-out infinite; transition:opacity .6s; }
+  #audioHint.hide { opacity:0; pointer-events:none; }
+  body.night #audioHint { color:#d8cfae; background:rgba(14,18,28,.72); }
+  @keyframes hintPulse { 0%,100%{ box-shadow:0 0 10px rgba(120,160,170,.2);} 50%{ box-shadow:0 0 22px rgba(120,190,200,.45);} }
+
+  /* ---------- Toast ---------- */
+  #toastWrap { position:fixed; top:66px; left:50%; transform:translateX(-50%); z-index:6;
+    display:flex; flex-direction:column; align-items:center; gap:8px; pointer-events:none; }
+  .toast { padding:8px 26px; font-size:14px; letter-spacing:5px; color:#33434e;
+    border:1px solid rgba(120,130,140,.5); border-left:3px solid #5f8ea0; border-right:3px solid #5f8ea0;
+    background:rgba(240,248,252,.82); backdrop-filter:blur(8px);
+    animation:toastIn .45s ease, toastOut .5s ease var(--d,2.4s) forwards; white-space:nowrap; }
+  .toast.gold { color:#7a5a10; border-color:rgba(190,150,60,.75); border-left-color:#d4a017; border-right-color:#d4a017;
+    background:linear-gradient(90deg, rgba(255,244,214,.92), rgba(255,236,190,.9), rgba(255,244,214,.92));
+    box-shadow:0 0 24px rgba(212,160,23,.35); }
+  body.night .toast { color:#dfe6ee; background:rgba(16,20,32,.82); }
+  body.night .toast.gold { color:#f5dc9a; }
+  @keyframes toastIn { from{ opacity:0; transform:translateY(-14px);} to{ opacity:1; transform:none;} }
+  @keyframes toastOut { to{ opacity:0; transform:translateY(-10px);} }
+
+  /* ---------- 相机预览 ---------- */
+  #camWrap { position:fixed; right:16px; bottom:16px; z-index:5; width:168px; height:126px;
+    border:1px solid rgba(130,140,130,.45); background:#0c1016; overflow:hidden;
+    box-shadow:0 4px 18px rgba(0,0,0,.25); }
+  #cam { position:absolute; inset:0; width:100%; height:100%; object-fit:cover;
+    transform:scaleX(-1); opacity:.85; }
+  #skel { position:absolute; inset:0; width:100%; height:100%; transform:scaleX(-1); }
+  #camWrap .tag { position:absolute; left:0; top:0; font-size:10px; letter-spacing:2px;
+    padding:2px 8px; color:#cfe3ea; background:rgba(10,16,24,.55); z-index:2; }
+
+  /* ---------- 加载层 ---------- */
+  #loading { position:fixed; inset:0; z-index:20; display:flex; flex-direction:column; gap:26px;
+    align-items:center; justify-content:center; background:#f5f0e1; color:#4a4436;
+    transition:opacity .9s ease; letter-spacing:8px; }
+  #loading.hide { opacity:0; pointer-events:none; }
+  #loading .ring { width:64px; height:64px; border-radius:50%;
+    border:2px solid rgba(90,120,130,.25); border-top-color:#4e8ba0; animation:spin 1.1s linear infinite; }
+  #loading p { font-size:15px; font-weight:300; }
+  @keyframes spin { to{ transform:rotate(360deg);} }
+  @media (max-width:640px){ #hud{ width:216px; } #tips{ font-size:10px; gap:6px; } #camWrap{ width:120px; height:90px; } }
+</style>
+<script type="importmap">
+{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.185.1/build/three.module.js" } }
+</script>
+</head>
+<body>
+<canvas id="gl"></canvas>
+<div id="vignette"></div>
+
+<div id="hud">
+  <img class="corner tl" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Cpath d='M2 38V16M2 16q0-8 8-8 3-5 9-2 5-4 9 1 8 0 8 8v11' fill='none' stroke='%23a08a4e' stroke-width='2' stroke-linecap='round'/%3E%3Ccircle cx='20' cy='24' r='3' fill='none' stroke='%23a08a4e' stroke-width='1.5'/%3E%3C/svg%3E">
+  <img class="corner tr" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Cpath d='M2 38V16M2 16q0-8 8-8 3-5 9-2 5-4 9 1 8 0 8 8v11' fill='none' stroke='%23a08a4e' stroke-width='2' stroke-linecap='round'/%3E%3Ccircle cx='20' cy='24' r='3' fill='none' stroke='%23a08a4e' stroke-width='1.5'/%3E%3C/svg%3E">
+  <img class="corner br" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Cpath d='M2 38V16M2 16q0-8 8-8 3-5 9-2 5-4 9 1 8 0 8 8v11' fill='none' stroke='%23a08a4e' stroke-width='2' stroke-linecap='round'/%3E%3Ccircle cx='20' cy='24' r='3' fill='none' stroke='%23a08a4e' stroke-width='1.5'/%3E%3C/svg%3E">
+  <img class="corner bl" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Cpath d='M2 38V16M2 16q0-8 8-8 3-5 9-2 5-4 9 1 8 0 8 8v11' fill='none' stroke='%23a08a4e' stroke-width='2' stroke-linecap='round'/%3E%3Ccircle cx='20' cy='24' r='3' fill='none' stroke='%23a08a4e' stroke-width='1.5'/%3E%3C/svg%3E">
+  <div id="scanbar"></div>
+  <div class="title"><span class="seal">園</span>圆明园 · 万园之园</div>
+  <div class="rows">
+    <div class="row"><span>光影模式</span><b id="hMode">白昼盛景</b></div>
+    <div class="row"><span>追踪手势</span><b id="hGesture"><span id="statusDot"></span>未检测</b></div>
+    <div class="row"><span>聚焦景致</span><b id="hFocus">纵览全局</b></div>
+    <div class="row"><span>彩蛋景致</span><b id="hEgg" class="gold">待探索</b></div>
+    <div class="row"><span>粒子总数</span><b id="hCount">—</b></div>
+    <div class="row"><span>场景帧率</span><b id="hFps">— FPS</b></div>
+    <div class="row"><span>琴音</span><input type="range" id="sBgm" min="0" max="100" value="25" title="背景琴音音量"></div>
+    <div class="row"><span>音效</span><input type="range" id="sSfx" min="0" max="100" value="80" title="操作音效音量"></div>
+    <div class="row"><span>声音总控</span><b id="btnMute">开 · 点击静音</b></div>
+  </div>
+</div>
+
+<div id="tips">
+  <span>张掌挥手 · 环视园林</span><span>张掌前推 · 凑近细赏</span><span>握拳后拉 · 高空俯瞰</span>
+  <span>竖大拇指 · 昼夜切换</span><span>比耶手势 · 漫天光雨</span><span>OK 手势 · 视角复位</span>
+  <span>双手拉开 · 雾散景清</span><span>双手合拢 · 暮雾升腾</span><span>一拳一画圈 · 云台巡游</span>
+  <span>双手兰花指 · 莲绽湖心</span><span>双手OK · 鎏金花瓣雨</span>
+</div>
+
+<div id="audioHint">轻触任意处 · 开启国风琴音</div>
+<div id="toastWrap"></div>
+
+<div id="camWrap"><div class="tag">盛景扫描</div><video id="cam" autoplay muted playsinline></video><canvas id="skel" width="168" height="126"></canvas></div>
+
+<div id="loading"><div class="ring"></div><p>圆明园盛景构筑中 · 请稍候</p></div>
+
+<script type="module">
+import * as THREE from 'three';
+import { HandLandmarker, FilesetResolver } from 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/vision_bundle.mjs';
+
+/* ============================================================================
+   ███ 全局可调参数（所有阈值 / 数量 / 速度 / 色彩 / 音频 集中于此，便于快速调整）
+============================================================================ */
+const CONFIG = {
+  // —— 粒子数量 ——
+  count: {
+    arch: 21000,          // 大水法 洛可可三券牌坊（五彩琉璃 + 鎏金卷草 + 铜鹿逐鹿）
+    fountain: 6000,       // 大水法 喷泉（另有 6000 备用粒子，凑近时显现 = 数量翻倍）
+    fountainReserve: 6000,
+    islandVeg: 13000,     // 蓬岛瑶台 植被（随风轻摇）
+    islandPavilion: 3500, // 蓬岛瑶台 台榭
+    ripple: 9000,         // 蓬岛瑶台 湖面波纹
+    bridge: 9000,         // 九曲桥 桥面玉石
+    rail: 3000,           // 九曲桥 栏杆
+    lantern: 1400,        // 九曲桥 宫灯
+    tower: 15000,         // 方壶胜境 塔楼（金饰随机闪烁）
+    firefly: 3800,        // 方壶胜境 金萤
+    mist: 7000,           // 全域薄雾（双手合拢时升腾加浓）
+    distant: 4500,        // 远景楼阁剪影（双手拉开雾散时逐步显现）
+    ringInner: 11000,     // 内层鎏金云气环
+    ringOuter: 11000,     // 外层水雾青雾环
+    cloud: 5200,          // 白昼云絮
+    star: 4800,           // 夜景星点
+    streak: 2500,         // 白昼远景淡青烟云（视差滚动）
+    skyLantern: 2200,     // 夜景孔明灯（缓缓上浮）
+    lotus: 11500,         // 彩蛋 莲花
+    stamen: 900,          // 彩蛋 花蕊
+    eggFly: 3200,         // 彩蛋 萤火
+    poem: 0,              // 由文字采样生成
+    petal: 6000,          // 双手OK 鎏金花瓣雨
+    lakeLotus: 6500       // 兰花指 湖心莲绽
+  },
+  // —— 景观坐标 ——
+  lm: {
+    dashuifa: { name:'大水法',   c:new THREE.Vector3(-62, 0, -34) },
+    pengdao:  { name:'蓬岛瑶台', c:new THREE.Vector3( 66, 0,  38) },
+    bridge:   { name:'九曲桥',   c:new THREE.Vector3( 12, 0,  22) },
+    fanghu:   { name:'方壶胜境', c:new THREE.Vector3(  8, 0, -86) },
+    egg:      { name:'海岳开襟', c:new THREE.Vector3( 34, 0,  46) }
+  },
+  // —— 相机 ——
+  camTarget: new THREE.Vector3(0, 8, 0),
+  minDist: 55, maxDist: 330,
+  defYaw: 0.95, defPitch: 0.5, defDist: 168,
+  fovNear: 50, fovFar: 66,
+  springK: 3.0, springC: 3.1,
+  rotateGain: 2.1,
+  pitchGain: 0.85, deadZone: 0.07,
+  zoomGain: 130,
+  pushPullThresh: 0.045,
+  // —— 手势（单手） ——
+  gestureHold: 0.5,
+  pinchDist: 0.065,
+  // —— 双手手势 ——
+  twoHand: {
+    hold: 0.5,             // 防误触持续时间
+    spreadGain: 5.0,       // 双手开合 → 全局舒展灵敏度
+    spreadMax: 0.16,       // 最大舒展位移系数
+    fogGain: 5.0,
+    circleMinAngle: 1.4,   // 画圈判定累计弧度
+    circleSpeed: 1.15,     // 画圈巡游旋转速度
+    circleStillDist: 0.07, // 握拳手"保持不动"的位移阈值
+    lotusDuration: 6.0,    // 兰花指莲绽持续秒数
+    petalDuration: 3.2     // 花瓣雨持续秒数
+  },
+  // —— 昼夜 ——
+  dayBg:  new THREE.Color('#f4efe1'),   // 复原图暖金天光
+  nightBg:new THREE.Color('#0a0a12'),
+  nightTransition: 2.0,
+  // —— 特效 ——
+  burstDuration: 3.0,
+  nearBoostRange: [25, 85],
+  egg: {
+    radius: 26, minHeight: 50, duration: 8.0,
+    poem: ['谁道江南风景佳', '移天缩地在君怀']
+  },
+  breath: 0.55,
+  pixelRatioMax: 2,
+  idleOrbitAfter: 7,
+  // —— 音频（全部 Web Audio 实时合成，无外部音频文件依赖） ——
+  // 若想使用外部 BGM，把 mp3 直链填入 bgmUrl 即可（留空则使用内置古琴+竹笛生成式演奏）
+  audio: {
+    bgmUrl: '',
+    bgmVolume: 0.25,      // 琴音默认音量 25%
+    sfxVolume: 0.80,      // 音效默认音量 80%
+    fadeSeconds: 4.0,     // BGM 淡入时长
+    noteEvery: [1.3, 2.9],// 古琴音符间隔区间（秒）
+    fluteEvery: [9, 16],  // 竹笛乐句间隔区间（秒）
+    rootFreq: 130.81      // C3 宫调主音
+  }
+};
+
+/* ============================================================================
+   ███ 着色器（自定义自发光，无后处理 / 无光源）
+============================================================================ */
+const FRAG_GLOW = `
+  precision mediump float;
+  varying vec3 vColor; varying float vAlpha;
+  void main(){
+    vec2 uv = gl_PointCoord - 0.5;
+    float r2 = dot(uv, uv);
+    if (r2 > 0.25) discard;
+    float glow = exp(-13.0 * r2);
+    float core = exp(-42.0 * r2);
+    vec3 col = vColor * (glow * 0.62 + core * 1.5);
+    float a = (glow * 0.78 + core * 0.5) * vAlpha;
+    gl_FragColor = vec4(col, a);
+  }`;
+
+const VERT_MAIN = `
+  uniform float uTime, uNight, uBurstT, uBreath, uPR;
+  uniform float uFountainBoost, uRippleBoost, uLanternBoost, uFireflyBoost;
+  uniform float uSpread, uFog, uReveal, uGlow;
+  uniform vec3 uCamPos, uIslandC;
+  attribute vec3 aColorDay, aColorNight;
+  attribute float aSize, aSeed, aType, aReserve, aFar;
+  varying vec3 vColor; varying float vAlpha;
+  void main(){
+    vec3 p = position; float sz = aSize; float al = 1.0;
+    float T = uTime; float sd = aSeed; float ty = aType;
+    vec3 br = vec3(sin(p.x*0.13 + T*0.60 + sd*6.2832),
+                   sin(p.y*0.15 + T*0.50 + sd*4.13),
+                   sin(p.z*0.13 + T*0.55 + sd*2.71)) * uBreath;
+    if (ty < 0.5) {                                   // 建筑结构体
+      p += br;
+    } else if (ty < 1.5) {                            // 大水法 喷泉水幕
+      float per = 2.5 + sd * 0.6;
+      float t = fract(T / per + sd);
+      float vy = 20.0 + fract(sd*3.1) * 11.0, g = 18.0;
+      float ft = t * 2.0 * vy / g;
+      vec3 v0 = vec3((fract(sd*13.7)-0.5) * 5.5, vy, (fract(sd*7.3)-0.5) * 5.5);
+      p += vec3(v0.x*ft, v0.y*ft - 0.5*g*ft*ft, v0.z*ft);
+      al = smoothstep(0.0, 0.06, t) * (1.0 - smoothstep(0.5, 0.92, t));
+      sz *= 1.0 + uFountainBoost * 0.9;
+      al *= 1.0 + uFountainBoost * 0.7;
+      al *= mix(1.0, clamp(uFountainBoost * 1.4, 0.0, 1.0), aReserve);
+    } else if (ty < 2.5) {                            // 蓬岛瑶台 湖面涟漪
+      float r = length(p.xz - uIslandC.xz);
+      float w1 = sin(r*0.55 - T*1.5 + sd*6.2832);
+      float w2 = sin(r*1.9 - T*2.9 + sd*6.2832);
+      p.y += w1*0.45 + w2*0.3*uRippleBoost + br.y*0.4;
+      al = 0.30 + 0.42*(0.5 + 0.5*w1) + uRippleBoost*(0.34 + 0.3*(0.5+0.5*w2));
+      sz *= 1.0 + uRippleBoost * 0.45;
+    } else if (ty < 3.5) {                            // 九曲桥 宫灯呼吸闪烁
+      float pl = 0.62 + 0.38 * sin(T*2.0 + sd*6.2832);
+      al = pl * (0.5 + 0.5*uNight) + uLanternBoost * 0.45;
+      sz *= 1.0 + 0.28*uNight + uLanternBoost * 0.9;
+      p += br * 0.4;
+    } else if (ty < 4.5) {                            // 方壶胜境 鎏金飞萤
+      float h = mod(sd*37.0 + T*(1.0 + fract(sd*3.3)*0.8), 22.0);
+      p.y += h;
+      p.x += sin(T*0.8 + sd*9.0) * 1.7;
+      p.z += cos(T*0.7 + sd*7.0) * 1.7;
+      al = (0.35 + 0.65*fract(sd*5.0)) * (0.45 + 0.55*sin(T*3.0 + sd*40.0));
+      al *= 0.6 + 0.4*uNight;
+      sz *= 1.0 + uFireflyBoost * 0.8; al *= 1.0 + uFireflyBoost * 0.7;
+    } else if (ty < 5.5) {                            // 九曲桥 玉石高光（视角相关）
+      p += br * 0.5;
+      vec3 v = normalize(uCamPos - p);
+      float spec = pow(1.0 - abs(v.y), 4.0);
+      al = 0.7 + spec * 1.7 * (0.35 + 0.65*uNight);
+      sz *= 1.0 + spec * 0.45;
+    } else if (ty < 6.5) {                            // 全域薄雾（雾起时增浓）
+      p += br * 1.8;
+      al = 0.15 + 0.1 * sin(T*0.5 + sd*6.2832);
+    } else if (ty < 7.5) {                            // 植被 · 随风轻摇
+      float gust = 0.6 + 0.4 * sin(T*0.21 + p.x*0.008);
+      float sway = sin(p.x*0.08 + T*1.35 + sd*6.2832) * 0.38 * gust;
+      p.x += sway;
+      p.z += cos(p.z*0.07 + T*1.1 + sd*4.0) * 0.3 * gust;
+      p += br * 0.6;
+      al = 0.8 + 0.35 * sin(T*0.7 + sd*6.2832);
+    } else if (ty < 8.5) {                            // 鎏金饰件 · 随机轻闪
+      p += br * 0.5;
+      al = 0.72 + 0.48 * sin(T*(2.0 + fract(sd*3.0)*3.5) + sd*6.2832);
+    } else {                                          // 远景楼阁剪影
+      p += br * 0.3;
+      al = 0.55;
+    }
+    float bt = T - uBurstT;                           // 比耶 · 漫天光雨
+    if (bt > 0.0 && bt < 3.0) {
+      float e = sin(3.14159265 * bt / 3.0);
+      vec3 dir = normalize(vec3(sin(sd*91.7), cos(sd*37.3)*0.7 + 0.5, cos(sd*53.1)));
+      p += dir * e * (20.0 + fract(sd*7.7) * 22.0);
+      al *= 1.0 + e * 1.5; sz *= 1.0 + e * 0.75;
+    }
+    // —— 双手开合：全局舒展 / 收拢 ——
+    p.xz *= 1.0 + uSpread * 0.15 - uFog * 0.09;
+    // —— 动态辉光波动（昼随云影 / 夜随灯影） ——
+    al *= 1.0 + uGlow * (0.4 + 0.4 * sin(T*0.6 + sd*4.0));
+    // —— 暮雾：薄雾升腾，其余景物渐蒙 ——
+    if (ty > 5.5 && ty < 6.5) { al *= 1.0 + uFog * 2.4; sz *= 1.0 + uFog * 0.8; }
+    else { al *= 1.0 - uFog * 0.24; }
+    // —— 远景细节：雾散景清时逐步显现 ——
+    if (aFar > 0.5) { al *= mix(0.12, 1.0, uReveal); }
+    vec4 mv = modelViewMatrix * vec4(p, 1.0);
+    gl_Position = projectionMatrix * mv;
+    gl_PointSize = max(sz * uPR * (320.0 / -mv.z), 1.0);
+    vColor = mix(aColorDay, aColorNight, uNight);
+    vAlpha = al;
+  }`;
+
+const VERT_RING = `
+  uniform float uTime, uNight, uBurstT, uPR, uWide, uGlow;
+  attribute vec3 aColorDay, aColorNight;
+  attribute float aRadius, aAngle, aY, aSpeed, aSize, aSeed, aReserve;
+  varying vec3 vColor; varying float vAlpha;
+  void main(){
+    float T = uTime; float sd = aSeed;
+    float ang = aAngle + T * aSpeed;
+    vec3 p = vec3(cos(ang) * aRadius, aY + sin(T*0.5 + sd*6.2832)*1.6, sin(ang) * aRadius);
+    float al = (0.4 + 0.25 * (0.5 + 0.5*sin(T*0.9 + sd*6.2832))) * (0.55 + 0.45*uNight);
+    al *= mix(1.0, clamp(uWide*1.3, 0.0, 1.0), aReserve);
+    al *= 1.0 + uGlow * (0.4 + 0.4 * sin(T*0.6 + sd*4.0));
+    float sz = aSize * (1.0 + uWide*0.3);
+    float bt = T - uBurstT;
+    if (bt > 0.0 && bt < 3.0) {
+      float e = sin(3.14159265 * bt / 3.0);
+      p += normalize(vec3(cos(ang), 0.6, sin(ang))) * e * 30.0;
+      al *= 1.0 + e * 1.2;
+    }
+    vec4 mv = modelViewMatrix * vec4(p, 1.0);
+    gl_Position = projectionMatrix * mv;
+    gl_PointSize = max(sz * uPR * (320.0 / -mv.z), 1.0);
+    vColor = mix(aColorDay, aColorNight, uNight);
+    vAlpha = al;
+  }`;
+
+/* 背景层 kind：0 白昼云絮 / 1 夜景星点 / 2 淡青烟云(昼·视差) / 3 孔明灯(夜·上浮) */
+const VERT_BG = `
+  uniform float uTime, uNight, uPR, uWide, uGlow;
+  uniform vec3 uCamPos;
+  attribute vec3 aColorDay, aColorNight;
+  attribute float aSize, aSeed, aKind, aReserve, aYBase;
+  varying vec3 vColor; varying float vAlpha;
+  void main(){
+    float T = uTime; float sd = aSeed;
+    vec3 p = position;
+    float al; float sz = aSize;
+    if (aKind < 0.5) {                                   // 白昼云絮
+      float ang = atan(p.z, p.x) + T * (0.004 + fract(sd*3.3)*0.006);
+      float r = length(p.xz);
+      p = vec3(cos(ang)*r, aYBase + sin(T*0.1 + sd*6.2832)*6.0, sin(ang)*r);
+      al = (1.0 - uNight) * (0.16 + 0.1*(0.5+0.5*sin(T*0.2 + sd*6.2832)));
+      al *= mix(1.0, clamp(uWide*1.5, 0.0, 1.0), aReserve);
+      sz *= 1.0 + uWide * 0.5;
+    } else if (aKind < 1.5) {                            // 夜景星点
+      al = uNight * (0.35 + 0.65*(0.5+0.5*sin(T*2.2 + sd*40.0)));
+    } else if (aKind < 2.5) {                            // 远景淡青烟云（流动+视差）
+      float ang = atan(p.z, p.x) + T * (0.008 + fract(sd*5.1)*0.01);
+      float r = length(p.xz);
+      p = vec3(cos(ang)*r, aYBase + sin(T*0.13 + sd*6.2832)*10.0, sin(ang)*r);
+      float dayA = 0.13 + 0.08*(0.5+0.5*sin(T*0.3 + sd*6.2832));
+      float nightA = 0.05;
+      al = mix(dayA, nightA, uNight);
+      sz *= 1.2 + uWide * 0.6;
+    } else {                                             // 孔明灯（缓缓上浮+闪烁）
+      float rise = 2.2 + fract(sd*3.7)*3.2;
+      p.y = mod(aYBase + T*rise, 175.0) - 6.0;
+      float drift = sin(T*0.25 + sd*6.2832)*8.0;
+      p.x += drift; p.z += cos(T*0.2 + sd*4.0)*8.0;
+      float flick = 0.7 + 0.3*sin(T*3.2 + sd*30.0);
+      al = uNight * 0.85 * flick;
+    }
+    al *= 1.0 + uGlow * 0.6;
+    // —— 视差：远景随相机产生层次纵深 ——
+    float pf = aKind < 0.5 ? 0.55 : aKind < 1.5 ? 0.92 : aKind < 2.5 ? 0.9 : 0.45;
+    p.x += uCamPos.x * pf; p.z += uCamPos.z * pf;
+    vec4 mv = modelViewMatrix * vec4(p, 1.0);
+    gl_Position = projectionMatrix * mv;
+    gl_PointSize = max(sz * uPR * (320.0 / -mv.z), 1.0);
+    vColor = mix(aColorDay, aColorNight, uNight);
+    vAlpha = al;
+  }`;
+
+const VERT_EGG = `
+  uniform float uTime, uNight, uPR, uEggT;
+  attribute vec3 aPosA, aPosB, aColorDay, aColorNight;
+  attribute float aSize, aSeed, aKind, aRise;
+  varying vec3 vColor; varying float vAlpha;
+  void main(){
+    float T = uEggT; float sd = aSeed;
+    vec3 p; float al = 0.0; float sz = aSize;
+    if (T < 0.0) { vAlpha = 0.0; gl_Position = vec4(2.0, 2.0, 2.0, 1.0); vColor = vec3(0.0); gl_PointSize = 0.0; return; }
+    if (aKind < 0.5) {                                   // 鎏金莲花：含苞 → 绽放
+      float open = smoothstep(0.08, 0.5, T);
+      float rise = smoothstep(0.0, 0.3, T) * aRise;
+      p = mix(aPosA, aPosB, open) + vec3(0.0, rise, 0.0);
+      p.x += sin(uTime*0.8 + sd*6.2832)*0.15; p.z += cos(uTime*0.7 + sd*5.0)*0.15;
+      al = smoothstep(0.0, 0.08, T) * (1.0 - smoothstep(0.86, 1.0, T));
+      al *= 0.75 + 0.25*sin(uTime*2.0 + sd*30.0);
+    } else if (aKind < 1.5) {                            // 漫天萤火升腾
+      float act = smoothstep(0.1, 0.25, T) * (1.0 - smoothstep(0.8, 0.95, T));
+      float r = 5.0 + T * 34.0 * fract(sd*7.7);
+      float ang = sd*6.2832 + uTime * (0.6 + fract(sd*3.1));
+      p = aPosA + vec3(cos(ang)*r, T*26.0*(0.4+fract(sd*5.3)) - 2.0, sin(ang)*r*0.7);
+      al = act * (0.4 + 0.6*(0.5+0.5*sin(uTime*3.5 + sd*40.0)));
+    } else {                                             // 粒子古诗字幕
+      float pr = smoothstep(0.3, 0.55, T);
+      p = mix(aPosA, aPosB, pr);
+      al = smoothstep(0.32, 0.5, T) * (1.0 - smoothstep(0.8, 0.94, T));
+      al *= 0.8 + 0.2*sin(uTime*2.5 + sd*30.0);
+    }
+    vec4 mv = modelViewMatrix * vec4(p, 1.0);
+    gl_Position = projectionMatrix * mv;
+    gl_PointSize = max(sz * uPR * (320.0 / -mv.z), 1.0);
+    vColor = mix(aColorDay, aColorNight, uNight);
+    vAlpha = al;
+  }`;
+
+/* 双手OK · 鎏金花瓣雨：花瓣自上空飘落覆盖全园 */
+const VERT_PETAL = `
+  uniform float uTime, uNight, uPR, uPetalT;
+  attribute vec3 aColorDay, aColorNight;
+  attribute float aSize, aSeed, aDelay, aSwing;
+  varying vec3 vColor; varying float vAlpha;
+  void main(){
+    float T = uTime; float sd = aSeed;
+    float pt = T - uPetalT;
+    vec3 p = position; float al = 0.0;
+    if (pt > 0.0 && pt < 3.4) {
+      float t = pt - aDelay;
+      if (t > 0.0) {
+        float prog = clamp(t / 3.0, 0.0, 1.0);
+        p.y = position.y - t * 24.0;
+        p.x += sin(t*1.6 + sd*6.2832) * aSwing;
+        p.z += cos(t*1.3 + sd*4.0) * aSwing * 0.8;
+        float flick = 0.8 + 0.2*sin(T*4.0 + sd*30.0);
+        al = smoothstep(0.0, 0.12, prog) * (1.0 - smoothstep(0.82, 1.0, prog)) * flick;
+        if (p.y < 0.4) al *= max(0.0, p.y / 0.4);
+      }
+    }
+    if (al <= 0.001) { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); gl_PointSize = 0.0; vColor = vec3(0.0); vAlpha = 0.0; return; }
+    vec4 mv = modelViewMatrix * vec4(p, 1.0);
+    gl_Position = projectionMatrix * mv;
+    gl_PointSize = max(aSize * uPR * (320.0 / -mv.z), 1.0);
+    vColor = mix(aColorDay, aColorNight, uNight);
+    vAlpha = al;
+  }`;
+
+/* 兰花指 · 湖心莲绽：湖面莲花绽开 + 波纹扩散 + 花瓣飘远 */
+const VERT_LOTUS = `
+  uniform float uTime, uNight, uPR, uLotusT;
+  attribute vec3 aPosA, aColorDay, aColorNight;
+  attribute float aSize, aSeed, aKind, aStagger, aRad;
+  varying vec3 vColor; varying float vAlpha;
+  void main(){
+    float T = uLotusT; float sd = aSeed;
+    vec3 p; float al = 0.0; float sz = aSize;
+    if (T < 0.0 || T > 1.0) { gl_Position = vec4(2.0,2.0,2.0,1.0); gl_PointSize = 0.0; vColor=vec3(0.0); vAlpha=0.0; return; }
+    vec3 c = aPosA;
+    float outFade = 1.0 - smoothstep(0.78, 0.97, T);
+    if (aKind < 0.5) {                                   // 莲花瓣：绽开
+      float st = aStagger * 0.35;
+      float bloom = smoothstep(st, st + 0.25, T);
+      float r = 1.0 + bloom * aRad;
+      float wob = sin(uTime*0.9 + sd*6.2832) * 0.15;
+      p = vec3(c.x + cos(sd*6.2832)*r + wob, c.y + 0.5 + bloom*0.9, c.z + sin(sd*6.2832)*r + wob);
+      al = smoothstep(st, st+0.08, T) * outFade * (0.75 + 0.25*sin(uTime*2.0 + sd*30.0));
+      sz *= 0.6 + bloom * 0.6;
+    } else if (aKind < 1.5) {                            // 扩散波纹环
+      float r = 1.5 + T * 12.0 * aRad;
+      p = vec3(c.x + cos(sd*6.2832)*r, 0.35, c.z + sin(sd*6.2832)*r);
+      al = (1.0 - T) * 0.45;
+    } else {                                             // 花瓣顺波纹飘远
+      float st = 0.25 + aStagger * 0.3;
+      float go = smoothstep(st, st + 0.5, T);
+      float r = 2.5 + go * 16.0;
+      p = vec3(c.x + cos(sd*6.2832)*r, 0.5 + sin(uTime + sd*6.28)*0.3, c.z + sin(sd*6.2832)*r);
+      al = smoothstep(st, st+0.1, T) * (1.0 - smoothstep(0.75, 0.95, T)) * 0.8;
+    }
+    if (al <= 0.001) { gl_Position = vec4(2.0,2.0,2.0,1.0); gl_PointSize = 0.0; vColor=vec3(0.0); vAlpha=0.0; return; }
+    vec4 mv = modelViewMatrix * vec4(p, 1.0);
+    gl_Position = projectionMatrix * mv;
+    gl_PointSize = max(sz * uPR * (320.0 / -mv.z), 1.0);
+    vColor = mix(aColorDay, aColorNight, uNight);
+    vAlpha = al;
+  }`;
+
+/* ============================================================================
+   ███ 全局状态
+============================================================================ */
+let renderer, scene, camera;
+let matMain, matRing, matBg, matEgg, matPetal, matLotus;
+let pointsEgg, pointsPetal, pointsLotus;
+let TOTAL = 0;
+let lastNow = performance.now();
+const state = {
+  time: 0, night: 0, nightTarget: 0,
+  burstT: -100, petalT: -100, lotusT0: -100,
+  fps: 0, frames: 0, fpsT: 0,
+  wide: 0, glow: 0,
+  spread: 0, spreadTarget: 0, fog: 0, fogTarget: 0,
+  boosts: { fountain: 0, ripple: 0, lantern: 0, firefly: 0 },
+  egg: { active: false, start: 0, cooldown: false },
+  lastHandT: -100
+};
+const cam = { yaw: 2.9, pitch: 0.95, dist: 360, tYaw: CONFIG.defYaw, tPitch: CONFIG.defPitch, tDist: CONFIG.defDist, vy: 0, vp: 0, vd: 0 };
+
+/* ============================================================================
+   ███ 工具函数
+============================================================================ */
+const rnd = (a, b) => a + Math.random() * (b - a);
+function rotY(x, z, ang) { const c = Math.cos(ang), s = Math.sin(ang); return [x*c + z*s, -x*s + z*c]; }
+function showToast(msg, gold = false, dur = 2600) {
+  const w = document.getElementById('toastWrap');
+  const el = document.createElement('div');
+  el.className = 'toast' + (gold ? ' gold' : '');
+  el.style.setProperty('--d', (dur / 1000) + 's');
+  el.textContent = msg;
+  w.appendChild(el);
+  setTimeout(() => el.remove(), dur + 600);
+}
+const springStep = (cur, vel, target, k, c, dt) => {
+  vel += ((target - cur) * k - vel * c) * dt;
+  return [cur + vel * dt, vel];
+};
+
+function makeSink() {
+  const s = { pos: [], cd: [], cn: [], size: [], seed: [], type: [], reserve: [], far: [], n: 0 };
+  s.push = (x, y, z, type, size, cDay, cNight, reserve = 0, far = 0) => {
+    s.pos.push(x, y, z);
+    s.cd.push(cDay[0], cDay[1], cDay[2]);
+    s.cn.push(cNight[0], cNight[1], cNight[2]);
+    s.size.push(size); s.seed.push(Math.random()); s.type.push(type); s.reserve.push(reserve); s.far.push(far);
+    s.n++;
+  };
+  return s;
+}
+function sinkToPoints(sink, vertexShader, extraUniforms = {}) {
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(sink.pos, 3));
+  g.setAttribute('aColorDay', new THREE.Float32BufferAttribute(sink.cd, 3));
+  g.setAttribute('aColorNight', new THREE.Float32BufferAttribute(sink.cn, 3));
+  g.setAttribute('aSize', new THREE.Float32BufferAttribute(sink.size, 1));
+  g.setAttribute('aSeed', new THREE.Float32BufferAttribute(sink.seed, 1));
+  if (sink.type) g.setAttribute('aType', new THREE.Float32BufferAttribute(sink.type, 1));
+  if (sink.reserve) g.setAttribute('aReserve', new THREE.Float32BufferAttribute(sink.reserve, 1));
+  if (sink.far) g.setAttribute('aFar', new THREE.Float32BufferAttribute(sink.far, 1));
+  const mat = new THREE.ShaderMaterial({
+    vertexShader, fragmentShader: FRAG_GLOW,
+    uniforms: {
+      uTime: { value: 0 }, uNight: { value: 0 }, uBurstT: { value: -100 },
+      uBreath: { value: CONFIG.breath }, uPR: { value: 1 },
+      uSpread: { value: 0 }, uFog: { value: 0 }, uReveal: { value: 0 }, uGlow: { value: 0 }, ...extraUniforms
+    },
+    transparent: true, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending
+  });
+  const pts = new THREE.Points(g, mat);
+  pts.frustumCulled = false;
+  TOTAL += sink.n;
+  return { pts, mat };
+}
+
+/* ============================================================================
+   ███ AUDIO —— 国风音域体系（Web Audio 全合成：古琴+竹笛 BGM / 专属手势音效）
+============================================================================ */
+const AU = {
+  ctx: null, master: null, bgmGain: null, sfxGain: null,
+  started: false, muted: false, bgmVolume: CONFIG.audio.bgmVolume, sfxVolume: CONFIG.audio.sfxVolume,
+  noiseBuf: null, nextNoteT: 0, nextFluteT: 0, timer: null, extAudio: null,
+  // 五声音阶（宫商角徵羽）频率表：C 大调宫系统
+  scaleSteps: [0, 2, 4, 7, 9],
+  noteFreq(deg, oct = 0) {
+    const idx = ((deg % 5) + 5) % 5, o = oct + Math.floor(deg / 5);
+    return CONFIG.audio.rootFreq * Math.pow(2, this.scaleSteps[idx] / 12 + o);
+  }
+};
+function auInit() {
+  if (AU.started) return;
+  AU.started = true;
+  document.getElementById('audioHint').classList.add('hide');
+  try {
+    AU.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    if (AU.ctx.state === 'suspended') AU.ctx.resume();
+    AU.master = AU.ctx.createGain(); AU.master.gain.value = 1;
+    AU.master.connect(AU.ctx.destination);
+    AU.bgmGain = AU.ctx.createGain(); AU.bgmGain.gain.value = 0;
+    AU.sfxGain = AU.ctx.createGain(); AU.sfxGain.gain.value = AU.sfxVolume;
+    AU.bgmGain.connect(AU.master); AU.sfxGain.connect(AU.master);
+    // 白噪声缓冲（用于音效）
+    const len = AU.ctx.sampleRate * 2;
+    AU.noiseBuf = AU.ctx.createBuffer(1, len, AU.ctx.sampleRate);
+    const d = AU.noiseBuf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    // —— BGM 来源：外部链接优先，否则内置生成式古琴+竹笛 ——
+    if (CONFIG.audio.bgmUrl) {
+      const a = new Audio(CONFIG.audio.bgmUrl);
+      a.loop = true; a.volume = AU.bgmVolume; a.crossOrigin = 'anonymous';
+      a.play().then(() => { AU.extAudio = a; }).catch(() => {});
+    } else {
+      auStartGenerative();
+    }
+    AU.bgmGain.gain.setTargetAtTime(AU.bgmVolume, AU.ctx.currentTime, CONFIG.audio.fadeSeconds / 3);
+  } catch (e) { /* 无音频环境时静默降级 */ }
+}
+/* —— 生成式 BGM：古琴散音 + 竹笛乐句 + 低音宫弦，永续无缝 —— */
+function auStartGenerative() {
+  const ctx = AU.ctx;
+  // 低音宫弦（持续嗡鸣衬底）
+  const drone = ctx.createOscillator(); drone.type = 'sine'; drone.frequency.value = CONFIG.audio.rootFreq / 2;
+  const dGain = ctx.createGain(); dGain.gain.value = 0.045;
+  const dLfo = ctx.createOscillator(); dLfo.frequency.value = 0.1;
+  const dLfoG = ctx.createGain(); dLfoG.gain.value = 0.02;
+  dLfo.connect(dLfoG); dLfoG.connect(dGain.gain);
+  drone.connect(dGain); dGain.connect(AU.bgmGain);
+  drone.start(); dLfo.start();
+  AU.nextNoteT = ctx.currentTime + 0.3;
+  AU.nextFluteT = ctx.currentTime + 5;
+  AU.timer = setInterval(auSchedule, 240);
+}
+function auPluck(freq, t, dur = 2.4, vol = 0.16, dest = null) {
+  const ctx = AU.ctx;
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(vol, t + 0.006);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1900; lp.Q.value = 1;
+  for (const det of [-2.5, 2.5]) {
+    const o = ctx.createOscillator(); o.type = 'triangle';
+    o.frequency.value = freq; o.detune.value = det;
+    o.connect(lp); o.start(t); o.stop(t + dur + 0.1);
+  }
+  lp.connect(g); g.connect(dest || AU.bgmGain);
+}
+function auFlute(freq, t, dur = 2.0, vol = 0.06, dest = null) {
+  const ctx = AU.ctx;
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.linearRampToValueAtTime(vol, t + dur * 0.35);
+  g.gain.linearRampToValueAtTime(0.0001, t + dur);
+  const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.value = freq;
+  const vib = ctx.createOscillator(); vib.frequency.value = 5.2;
+  const vibG = ctx.createGain(); vibG.gain.value = freq * 0.006;
+  vib.connect(vibG); vibG.connect(o.frequency);
+  const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1300;
+  o.connect(lp); lp.connect(g); g.connect(dest || AU.bgmGain);
+  o.start(t); o.stop(t + dur + 0.1); vib.start(t); vib.stop(t + dur + 0.1);
+}
+function auSchedule() {
+  const ctx = AU.ctx;
+  if (ctx.state !== 'running') return;
+  while (AU.nextNoteT < ctx.currentTime + 0.8) {
+    const deg = Math.floor(rnd(-2, 10));
+    auPluck(AU.noteFreq(deg, 1), AU.nextNoteT, rnd(1.8, 3.0));
+    if (Math.random() < 0.16) auPluck(AU.noteFreq(deg + 4, 0), AU.nextNoteT + 0.04, 2.6, 0.09); // 散音和应
+    AU.nextNoteT += rnd(CONFIG.audio.noteEvery[0], CONFIG.audio.noteEvery[1]);
+  }
+  if (AU.nextFluteT < ctx.currentTime + 1.5) {  // 竹笛乐句：夜景更密
+    const ph = state.nightTarget === 1 || Math.random() < 0.6;
+    if (ph) {
+      let deg = Math.floor(rnd(0, 8)); let t = Math.max(AU.nextFluteT, ctx.currentTime + 0.2);
+      const n = 3 + (Math.random() * 3 | 0);
+      for (let i = 0; i < n; i++) {
+        auFlute(AU.noteFreq(deg, 1), t, rnd(1.4, 2.4));
+        deg += Math.random() < 0.5 ? 1 : -1; deg = Math.max(0, Math.min(9, deg));
+        t += rnd(0.9, 1.6);
+      }
+    }
+    AU.nextFluteT = ctx.currentTime + rnd(CONFIG.audio.fluteEvery[0], CONFIG.audio.fluteEvery[1]);
+  }
+}
+/* —— 专属手势音效（与动作节点同帧触发，天然音画同步） —— */
+function sfxBell() {  // 握拳拉远 · 悠远撞钟余响
+  if (!AU.ctx) return; const ctx = AU.ctx, t = ctx.currentTime;
+  [[98, 0.5], [196.5, 0.22], [293.3, 0.1]].forEach(([f, v], i) => {
+    const o = ctx.createOscillator(); o.type = 'sine';
+    o.frequency.setValueAtTime(f, t); o.frequency.exponentialRampToValueAtTime(f * 0.985, t + 4);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(v, t + 0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 4.2 - i);
+    o.connect(g); g.connect(AU.sfxGain); o.start(t); o.stop(t + 4.3);
+  });
+}
+function sfxJade() {  // 张掌凑近 · 清脆玉佩碰撞
+  if (!AU.ctx) return; const ctx = AU.ctx, t = ctx.currentTime;
+  for (let i = 0; i < 3; i++) {
+    const tt = t + i * 0.07, f = rnd(2400, 3900);
+    const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.value = f;
+    const o2 = ctx.createOscillator(); o2.type = 'sine'; o2.frequency.value = f * 1.13;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, tt); g.gain.exponentialRampToValueAtTime(0.16, tt + 0.004);
+    g.gain.exponentialRampToValueAtTime(0.0001, tt + 0.13);
+    o.connect(g); o2.connect(g); g.connect(AU.sfxGain);
+    o.start(tt); o.stop(tt + 0.15); o2.start(tt); o2.stop(tt + 0.15);
+  }
+}
+function sfxDoor() {  // 昼夜切换 · 宫门开合轻响
+  if (!AU.ctx) return; const ctx = AU.ctx, t = ctx.currentTime;
+  const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.setValueAtTime(72, t);
+  o.frequency.exponentialRampToValueAtTime(48, t + 0.3);
+  const g = ctx.createGain(); g.gain.setValueAtTime(0.35, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.4);
+  o.connect(g); g.connect(AU.sfxGain); o.start(t); o.stop(t + 0.45);
+  const n = ctx.createBufferSource(); n.buffer = AU.noiseBuf;
+  const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = 2;
+  bp.frequency.setValueAtTime(260, t); bp.frequency.exponentialRampToValueAtTime(820, t + 0.45);
+  const ng = ctx.createGain(); ng.gain.setValueAtTime(0.0001, t);
+  ng.gain.linearRampToValueAtTime(0.12, t + 0.18); ng.gain.linearRampToValueAtTime(0.0001, t + 0.5);
+  n.connect(bp); bp.connect(ng); ng.connect(AU.sfxGain); n.start(t); n.stop(t + 0.55);
+}
+function sfxGuzheng() {  // 彩蛋 · 舒缓古筝拨弦
+  if (!AU.ctx) return; const ctx = AU.ctx, t = ctx.currentTime;
+  for (let i = 0; i < 5; i++) auPluck(AU.noteFreq(i, 1), t + i * 0.14, 1.6, 0.2, AU.sfxGain);
+}
+function sfxEnsemble() {  // 双手联动特效 · 丝竹合奏爆发
+  if (!AU.ctx) return; const ctx = AU.ctx, t = ctx.currentTime;
+  [0, 2, 4].forEach(dg => auPluck(AU.noteFreq(dg, 1), t, 2.0, 0.16, AU.sfxGain));
+  auFlute(AU.noteFreq(4, 2), t + 0.1, 1.8, 0.09, AU.sfxGain);
+  const n = ctx.createBufferSource(); n.buffer = AU.noiseBuf;
+  const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 4200;
+  const g = ctx.createGain(); g.gain.setValueAtTime(0.08, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 1.1);
+  n.connect(hp); hp.connect(g); g.connect(AU.sfxGain); n.start(t); n.stop(t + 1.2);
+}
+function sfxChime() {  // 花瓣雨 · 风铃碎响
+  if (!AU.ctx) return; const ctx = AU.ctx, t = ctx.currentTime;
+  for (let i = 0; i < 8; i++) {
+    const tt = t + i * 0.1;
+    const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.value = AU.noteFreq(9 - i, 2);
+    const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, tt);
+    g.gain.exponentialRampToValueAtTime(0.1, tt + 0.005); g.gain.exponentialRampToValueAtTime(0.0001, tt + 0.5);
+    o.connect(g); g.connect(AU.sfxGain); o.start(tt); o.stop(tt + 0.55);
+  }
+}
+function sfxWater() {  // 兰花指 · 湖心水滴
+  if (!AU.ctx) return; const ctx = AU.ctx, t = ctx.currentTime;
+  for (let i = 0; i < 4; i++) {
+    const tt = t + i * 0.16;
+    const o = ctx.createOscillator(); o.type = 'sine';
+    o.frequency.setValueAtTime(rnd(750, 950), tt); o.frequency.exponentialRampToValueAtTime(300, tt + 0.12);
+    const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, tt);
+    g.gain.exponentialRampToValueAtTime(0.2, tt + 0.006); g.gain.exponentialRampToValueAtTime(0.0001, tt + 0.16);
+    o.connect(g); g.connect(AU.sfxGain); o.start(tt); o.stop(tt + 0.2);
+  }
+}
+function sfxWhoosh(up = true) {  // 双手开合 · 风起雾散
+  if (!AU.ctx) return; const ctx = AU.ctx, t = ctx.currentTime;
+  const n = ctx.createBufferSource(); n.buffer = AU.noiseBuf;
+  const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = 1.4;
+  bp.frequency.setValueAtTime(up ? 380 : 1300, t);
+  bp.frequency.exponentialRampToValueAtTime(up ? 1400 : 300, t + 1.1);
+  const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t);
+  g.gain.linearRampToValueAtTime(0.14, t + 0.35); g.gain.linearRampToValueAtTime(0.0001, t + 1.2);
+  n.connect(bp); bp.connect(g); g.connect(AU.sfxGain); n.start(t); n.stop(t + 1.3);
+}
+function sfxScan() {  // 手已接入 · 古琴双音
+  if (!AU.ctx) return; const t = AU.ctx.currentTime;
+  auPluck(AU.noteFreq(0, 1), t, 1.8, 0.18, AU.sfxGain);
+  auPluck(AU.noteFreq(4, 1), t + 0.16, 2.2, 0.14, AU.sfxGain);
+}
+function sfxReset() {  // 视角复位 · 单音轻拨
+  if (!AU.ctx) return; const t = AU.ctx.currentTime;
+  auPluck(AU.noteFreq(0, 0), t, 2.0, 0.2, AU.sfxGain);
+}
+function sfxBurst() {  // 比耶光雨 · 快速三音
+  if (!AU.ctx) return; const t = AU.ctx.currentTime;
+  [0, 2, 4].forEach((dg, i) => auPluck(AU.noteFreq(dg, 2), t + i * 0.05, 1.2, 0.14, AU.sfxGain));
+}
+/* —— HUD 音频控件绑定 —— */
+function bindAudioUI() {
+  const sBgm = document.getElementById('sBgm'), sSfx = document.getElementById('sSfx'), btn = document.getElementById('btnMute');
+  sBgm.addEventListener('input', () => {
+    AU.bgmVolume = sBgm.value / 100;
+    if (AU.extAudio) AU.extAudio.volume = AU.bgmVolume;
+    if (AU.bgmGain) AU.bgmGain.gain.setTargetAtTime(AU.bgmVolume, AU.ctx.currentTime, 0.1);
+  });
+  sSfx.addEventListener('input', () => {
+    AU.sfxVolume = sSfx.value / 100;
+    if (AU.sfxGain) AU.sfxGain.gain.setTargetAtTime(AU.sfxVolume, AU.ctx.currentTime, 0.1);
+  });
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    auInit();
+    AU.muted = !AU.muted;
+    btn.textContent = AU.muted ? '静 · 点击开启' : '开 · 点击静音';
+    if (AU.master) AU.master.gain.setTargetAtTime(AU.muted ? 0 : 1, AU.ctx.currentTime, 0.15);
+  });
+  const unlock = () => auInit();
+  addEventListener('pointerdown', unlock, { once: true });
+  addEventListener('keydown', unlock, { once: true });
+  document.getElementById('audioHint').addEventListener('click', unlock);
+}
+
+/* ============================================================================
+   ███ initThree —— 渲染器 / 场景 / 相机
+============================================================================ */
+function initThree() {
+  renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('gl'), antialias: false, alpha: false });
+  const pr = Math.min(window.devicePixelRatio || 1, CONFIG.pixelRatioMax);
+  renderer.setPixelRatio(pr);
+  renderer.setSize(innerWidth, innerHeight);
+  renderer.setClearColor(CONFIG.dayBg, 1);
+  scene = new THREE.Scene();
+  camera = new THREE.PerspectiveCamera(56, innerWidth / innerHeight, 0.1, 2000);
+  addEventListener('resize', () => {
+    camera.aspect = innerWidth / innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(innerWidth, innerHeight);
+  });
+}
+
+/* ============================================================================
+   ███ initLandmarkEffects —— 大水法 / 蓬岛瑶台 / 九曲桥 / 方壶胜境 / 薄雾 / 远景
+============================================================================ */
+function initLandmarkEffects() {
+  const S = makeSink();
+
+  /* ---------- 大水法 · 色彩还原（洛可可三券牌坊 + 五彩琉璃 + 鎏金卷草 + 铜鹿逐鹿喷泉） ---------- */
+  {
+    const C = CONFIG.lm.dashuifa.c, faceAng = Math.atan2(-C.x, -C.z);
+    const put = (x, y, z, t, sz, cd, cn, r = 0) => { const [rx, rz] = rotY(x, z, faceAng); S.push(C.x + rx, y, C.z + rz, t, sz, cd, cn, r); };
+    const nA = CONFIG.count.arch;
+    // —— 复原配色：汉白玉 + 五彩琉璃 + 鎏金 ——
+    const marbleD = [0.66, 0.71, 0.73], marbleN = [1.0, 0.88, 0.60];
+    const goldD = [0.90, 0.73, 0.36], goldN = [1.28, 0.96, 0.45];
+    const jadeD = [0.36, 0.62, 0.55], jadeN = [0.55, 0.95, 0.85];
+    const glazes = [                                   // 考古实证：谐奇趣遗址出土 黄/绿/蓝/紫 四色琉璃
+      { d: [0.94, 0.75, 0.26], n: [1.18, 0.94, 0.42] },  // 明黄琉璃
+      { d: [0.26, 0.64, 0.40], n: [0.42, 0.95, 0.66] },  // 石绿琉璃
+      { d: [0.32, 0.55, 0.88], n: [0.42, 0.72, 1.08] },  // 琉蓝琉璃
+      { d: [0.62, 0.40, 0.74], n: [0.82, 0.60, 1.02] }   // 绛紫琉璃
+    ];
+    const pickG = () => glazes[(Math.random() * glazes.length) | 0];
+
+    // —— 1. 汉白玉高台 + 雕栏 + 石阶（15%） ——
+    for (let i = 0; i < nA * 0.15; i++) {
+      const r = Math.random();
+      if (r < 0.62) {                                    // 台基主体
+        put(rnd(-16.5, 16.5) + rnd(-.3, .3), rnd(0, 2.2), rnd(-4.2, 4.2) + rnd(-.3, .3), 0, rnd(0.85, 1.3), marbleD, marbleN);
+      } else if (r < 0.84) {                             // 台缘雕栏（望柱 + 栏板）
+        const side = Math.random() < 0.5 ? 1 : -1;
+        const edge = Math.random() < 0.6 ? [side * rnd(16.2, 16.9), rnd(-4.0, 4.0)] : [rnd(-16.5, 16.5), side * rnd(3.9, 4.5)];
+        put(edge[0], rnd(2.2, 3.5), edge[1], 0, rnd(0.75, 1.1), marbleD, marbleN);
+      } else {                                           // 台前石阶
+        put(rnd(-3.4, 3.4), rnd(0.4, 2.2), rnd(4.3, 7.2) + rnd(-.25, .25), 0, rnd(0.8, 1.15), marbleD, marbleN);
+      }
+    }
+
+    // —— 2. 中央大拱券（31%）：双柱 + 半圆拱 ——
+    for (let i = 0; i < nA * 0.21; i++) {
+      const pillar = Math.random() < 0.5 ? -1 : 1;
+      const x = pillar * rnd(6.0, 8.4), y = rnd(2.2, 19.6), z = rnd(-1.3, 1.3);
+      put(x + rnd(-.28, .28), y, z + rnd(-.28, .28), 0, rnd(0.9, 1.45), marbleD, marbleN);
+    }
+    for (let i = 0; i < nA * 0.10; i++) {
+      const along = rnd(0, Math.PI), x = Math.cos(along) * 7.3, y = 19.6 + Math.sin(along) * 6.6;
+      put(x + rnd(-1.0, 1.0), y, rnd(-0.9, 0.9), 0, rnd(0.9, 1.4), marbleD, marbleN);
+    }
+
+    // —— 3. 两翼小拱券（14%）：翼柱 + 小拱 + 女儿墙 ——
+    for (let i = 0; i < nA * 0.14; i++) {
+      const side = Math.random() < 0.5 ? -1 : 1;
+      const r = Math.random();
+      if (r < 0.55) {                                    // 翼柱身
+        const x = side * (Math.random() < 0.5 ? rnd(10.7, 12.1) : rnd(13.7, 15.1));
+        put(x + rnd(-.22, .22), rnd(2.2, 10.4), rnd(-1, 1) + rnd(-.2, .2), 0, rnd(0.85, 1.25), marbleD, marbleN);
+      } else if (r < 0.8) {                              // 翼拱券
+        const cx = side * 12.9, along = rnd(0, Math.PI);
+        put(cx + Math.cos(along) * rnd(0.8, 1.9), 10.4 + Math.sin(along) * 1.9, rnd(-.7, .7), 0, rnd(0.8, 1.2), marbleD, marbleN);
+      } else {                                           // 女儿墙 + 小金饰
+        const gold = Math.random() < 0.3;
+        put(side * rnd(10.5, 15.3) + rnd(-.2, .2), rnd(12.2, 13.6), rnd(-.6, .6),
+          gold ? 8 : 0, rnd(0.8, 1.2), gold ? goldD : marbleD, gold ? goldN : marbleN);
+      }
+    }
+
+    // —— 4. 拱上雕饰带 + 石龛 + 七级水盘 + 鎏金宝顶（12%） ——
+    for (let i = 0; i < nA * 0.12; i++) {
+      const r = Math.random();
+      if (r < 0.3) {                                     // 雕饰带（琉璃拼花）
+        const g = pickG();
+        put(rnd(-8.2, 8.2) + rnd(-.3, .3), rnd(24.2, 26.6), rnd(-.7, .7), 0, rnd(0.85, 1.25), g.d, g.n);
+      } else if (r < 0.55) {                             // 石龛塔身
+        const h = rnd(26.6, 30.2), w = 3.4 * (1 - (h - 26.6) / 4.2);
+        put(rnd(-w, w), h, rnd(-w, w), 0, rnd(0.85, 1.25), marbleD, marbleN);
+      } else if (r < 0.85) {                             // 七级水盘（层层叠落 · 水帘之源）
+        const dish = (Math.random() * 5) | 0, dy = 27.0 + dish * 0.82, dr = 3.1 - dish * 0.5;
+        const a = rnd(0, 6.2832);
+        put(Math.cos(a) * dr + rnd(-.15, .15), dy, Math.sin(a) * dr * 0.3 + rnd(-.15, .15), 8, rnd(0.8, 1.2), jadeD, jadeN);
+      } else {                                           // 鎏金宝顶
+        put(rnd(-.5, .5), rnd(30.4, 32.6), rnd(-.5, .5), 8, rnd(0.95, 1.5), goldD, goldN);
+      }
+    }
+
+    // —— 5. 五彩琉璃嵌饰（11%）：墙体大面积色块拼贴，入夜流光 ——
+    for (let i = 0; i < nA * 0.11; i++) {
+      const zone = Math.random();
+      let x, y;
+      if (zone < 0.4) { x = (Math.random() < 0.5 ? -1 : 1) * rnd(6.0, 8.4); y = rnd(3, 19); }          // 主柱嵌琉璃
+      else if (zone < 0.75) { x = (Math.random() < 0.5 ? -1 : 1) * rnd(10.6, 15.2); y = rnd(3, 11); }  // 翼墙嵌琉璃
+      else { x = rnd(-8.2, 8.2); y = rnd(24.2, 26.6); }                                                // 雕饰带补色
+      const g = pickG();
+      put(x + rnd(-.3, .3), y, rnd(-.9, .9), 8, rnd(0.75, 1.1), g.d, g.n);
+    }
+
+    // —— 6. 鎏金卷草纹（7%）：拱缘洛可可蔓草 + 柱头涡卷 + 拱心石鎏花 ——
+    for (let i = 0; i < nA * 0.07; i++) {
+      const r = Math.random();
+      if (r < 0.55) {
+        const along = rnd(0, Math.PI);
+        put(Math.cos(along) * rnd(8.6, 9.8), 19.6 + Math.sin(along) * rnd(7.2, 8.4), rnd(-.5, .5), 8, rnd(0.75, 1.15), goldD, goldN);
+      } else if (r < 0.8) {
+        const x = (Math.random() < 0.5 ? -1 : 1) * rnd(5.4, 9.0), a = rnd(0, 6.2832);
+        put(x + Math.cos(a) * rnd(0, .8), 19.4 + rnd(0, 1.6), Math.sin(a) * rnd(0, .8), 8, rnd(0.75, 1.1), goldD, goldN);
+      } else {
+        const a = rnd(0, 6.2832);
+        put(Math.cos(a) * rnd(0, 1.3), 26.2 + rnd(0, 1.2), Math.sin(a) * rnd(0, .5), 8, rnd(0.85, 1.25), goldD, goldN);
+      }
+    }
+
+    // —— 7. 铜鹿逐鹿（4%）：昂首主鹿 · 鹿角鎏光 · 群犬环伺 ——
+    for (let i = 0; i < nA * 0.04; i++) {
+      const r = Math.random();
+      if (r < 0.5) {                                     // 主鹿躯干
+        put(rnd(-.8, .8) + rnd(-.12, .12), rnd(0.9, 2.5), 6 + rnd(-1.2, 1.2) + rnd(-.12, .12), 0, rnd(0.85, 1.2), goldD, goldN);
+      } else if (r < 0.72) {                             // 昂首鹿角
+        const t = Math.random(), spread = 0.15 + t * 0.9;
+        put((Math.random() < 0.5 ? -1 : 1) * spread * rnd(.6, 1) + rnd(-.08, .08), 2.5 + t * 1.5, 6 + rnd(-.25, .25), 8, rnd(0.7, 1.05), goldD, goldN);
+      } else {                                           // 群犬左右环伺
+        const side = Math.random() < 0.5 ? -1 : 1;
+        put(side * rnd(2.6, 4.6) + rnd(-.1, .1), rnd(0.7, 1.6), rnd(4.6, 7.6) + rnd(-.1, .1), 0, rnd(0.7, 1.0), goldD, goldN);
+      }
+    }
+
+    // —— 8. 双子喷水塔（4%）+ 台前散石（2%） ——
+    for (let i = 0; i < nA * 0.04; i++) {
+      const side = Math.random() < 0.5 ? -1 : 1, tx = side * 9.8, tz = 8.2;
+      const h = rnd(0, 6.4), w = 1.15 * (1 - h / 9);
+      put(tx + rnd(-w, w), h, tz + rnd(-w, w), 0, rnd(0.8, 1.15), marbleD, marbleN);
+    }
+    for (let i = 0; i < nA * 0.02; i++) {
+      const a = rnd(0, 6.2832), rr = rnd(10, 19);
+      put(Math.cos(a) * rr, rnd(0, 1.1), Math.sin(a) * rr * 0.7 + 4, 0, rnd(0.8, 1.15), marbleD, marbleN);
+    }
+
+    // —— 9. 喷泉水幕：宝顶主喷 + 柱顶环喷 + 鹿角中央喷 + 双塔涌泉 ——
+    const waterD = [0.55, 0.78, 0.88], waterN = [0.5, 0.85, 1.0];
+    const nozzles = [[0, 25.6, 0], [-7.4, 19.8, 0], [7.4, 19.8, 0], [0, 19.8, 3.4], [0, 19.8, -3.4],
+                     [0, 4.1, 6], [-9.8, 6.6, 8.2], [9.8, 6.6, 8.2]];
+    const wts = [0.24, 0.12, 0.12, 0.09, 0.09, 0.20, 0.07, 0.07];
+    const totalJets = CONFIG.count.fountain + CONFIG.count.fountainReserve;
+    for (let i = 0; i < totalJets; i++) {
+      let pick = Math.random(), ni = 0, acc = 0;
+      for (let k = 0; k < wts.length; k++) { acc += wts[k]; if (pick < acc) { ni = k; break; } }
+      const nz = nozzles[ni];
+      const reserve = i >= CONFIG.count.fountain ? 1 : 0;
+      put(nz[0] + rnd(-.4, .4), nz[1] + rnd(0, .6), nz[2] + rnd(-.4, .4), 1, rnd(0.7, 1.2), waterD, waterN, reserve);
+    }
+  }
+
+  /* ---------- 蓬岛瑶台（植被随风轻摇 + 台榭 + 湖面波纹） ---------- */
+  {
+    const C = CONFIG.lm.pengdao.c;
+    const vegD = [0.30, 0.64, 0.42], vegN = [0.38, 0.92, 0.66];
+    const rockD = [0.58, 0.62, 0.6], rockN = [0.9, 0.8, 0.55];
+    const jadeD = [0.72, 0.8, 0.76], jadeN = [1.0, 0.88, 0.6];
+    const goldD = [0.85, 0.72, 0.4], goldN = [1.1, 0.85, 0.42];
+    const roofGrnD = [0.30, 0.66, 0.42], roofGrnN = [0.42, 0.95, 0.66];   // 绿琉璃檐（复原配色）
+    for (let i = 0; i < CONFIG.count.islandVeg; i++) {
+      const a = rnd(0, 6.2832), rr = Math.pow(Math.random(), 0.6) * 21;
+      const mound = Math.max(0, 5.5 * (1 - rr / 22) + rnd(0, 1.2));
+      const veg = Math.random() < 0.82;
+      S.push(C.x + Math.cos(a) * rr, mound + (veg ? rnd(0.2, 3.4 * (1 - rr / 26)) : rnd(0, .5)), C.z + Math.sin(a) * rr,
+        veg ? 7 : 0, rnd(0.8, 1.3), veg ? vegD : rockD, veg ? vegN : rockN);   // 植被 type7 风摇
+    }
+    for (let i = 0; i < CONFIG.count.islandPavilion; i++) {
+      const part = Math.random();
+      if (part < 0.4) { const x = rnd(-3, 3), z = rnd(-3, 3); S.push(C.x + x, rnd(5.5, 8.5), C.z + z, 0, rnd(0.9, 1.3), jadeD, jadeN); }
+      else if (part < 0.8) { const a = rnd(0, 6.2832); S.push(C.x + Math.cos(a) * rnd(3.6, 6.4), rnd(8.5, 9.6), C.z + Math.sin(a) * rnd(3.6, 6.4), 0, rnd(0.9, 1.3), jadeD, jadeN); }
+      else { const t = rnd(0, 1), a = rnd(0, 6.2832);
+        const green = Math.random() < 0.38;                  // 台榭攒尖顶：绿琉璃 / 鎏金相间
+        S.push(C.x + Math.cos(a) * t * 4.4, 9.6 + t * 4.2, C.z + Math.sin(a) * t * 4.4, 8, rnd(0.9, 1.4),
+          green ? roofGrnD : goldD, green ? roofGrnN : goldN); }
+    }
+    const ripD = [0.5, 0.75, 0.85], ripN = [0.45, 0.8, 0.98];
+    for (let i = 0; i < CONFIG.count.ripple; i++) {
+      const a = rnd(0, 6.2832), rr = rnd(23, 42);
+      S.push(C.x + Math.cos(a) * rr, rnd(0.15, 0.5), C.z + Math.sin(a) * rr, 2, rnd(0.8, 1.3), ripD, ripN);
+    }
+  }
+
+  /* ---------- 九曲桥（玉石桥面 + 栏杆 + 宫灯） ---------- */
+  {
+    const nodes = [[-20, 24], [-8, 24], [-8, 14], [6, 14], [6, 28], [20, 28], [20, 18], [34, 18], [34, 10], [48, 12]];
+    const jadeDeckD = [0.66, 0.74, 0.7], jadeDeckN = [1.0, 0.9, 0.62];
+    const lampD = [1.0, 0.82, 0.5], lampN = [1.2, 0.9, 0.5];
+    const segLens = []; let totalLen = 0;
+    for (let i = 0; i < nodes.length - 1; i++) { const l = Math.hypot(nodes[i+1][0]-nodes[i][0], nodes[i+1][1]-nodes[i][1]); segLens.push(l); totalLen += l; }
+    const pointOn = (d) => { let seg = 0; while (d > segLens[seg]) { d -= segLens[seg]; seg++; } const [x1, z1] = nodes[seg], [x2, z2] = nodes[seg+1]; const t = d / segLens[seg]; return { x: x1+(x2-x1)*t, z: z1+(z2-z1)*t, dx: (x2-x1)/segLens[seg], dz: (z2-z1)/segLens[seg] }; };
+    for (let i = 0; i < CONFIG.count.bridge; i++) {
+      const pt = pointOn(Math.random() * totalLen);
+      const w = rnd(-1.15, 1.15);
+      S.push(pt.x - pt.dz * w + rnd(-.15,.15), 1.2 + rnd(-.15, .2), pt.z + pt.dx * w + rnd(-.15,.15), 5, rnd(0.85, 1.35), jadeDeckD, jadeDeckN);
+    }
+    for (let i = 0; i < CONFIG.count.rail; i++) {
+      const pt = pointOn(Math.random() * totalLen);
+      const side = Math.random() < 0.5 ? 1.25 : -1.25;
+      S.push(pt.x - pt.dz * side, rnd(1.4, 2.5), pt.z + pt.dx * side, 0, rnd(0.75, 1.1), jadeDeckD, jadeDeckN);
+    }
+    const nLamps = Math.floor(totalLen / 7);
+    for (let i = 0; i < nLamps; i++) {
+      const pt = pointOn((i + 0.5) * totalLen / nLamps);
+      const side = (i % 2 ? 1.7 : -1.7);
+      const lx = pt.x - pt.dz * side, lz = pt.z + pt.dx * side;
+      const per = CONFIG.count.lantern / nLamps;
+      for (let j = 0; j < per; j++) {
+        const big = j === 0;
+        S.push(lx + (big ? 0 : rnd(-.5, .5)), 3.3 + (big ? 0 : rnd(-.5, .5)), lz + (big ? 0 : rnd(-.5, .5)),
+          3, big ? rnd(2.4, 3.2) : rnd(0.8, 1.2), lampD, lampN);
+      }
+    }
+  }
+
+  /* ---------- 方壶胜境（鎏金飞檐塔楼 + 升腾金萤） ---------- */
+  {
+    const C = CONFIG.lm.fanghu.c;
+    const bodyD = [0.6, 0.68, 0.66], bodyN = [1.0, 0.87, 0.6];
+    const goldD = [0.88, 0.72, 0.38], goldN = [1.2, 0.92, 0.45];
+    const azrD = [0.32, 0.55, 0.88], azrN = [0.42, 0.72, 1.08];   // 琉蓝檐角（复原配色）
+    const tiers = [[8.5, 0], [6.6, 7], [5.0, 13.5], [3.6, 19.5]];
+    for (let i = 0; i < CONFIG.count.tower; i++) {
+      const r = Math.random();
+      if (r < 0.32) {
+        const a = rnd(0, 6.2832), rr = rnd(9, 13);
+        S.push(C.x + Math.cos(a) * rr, rnd(0, 2.2), C.z + Math.sin(a) * rr, 0, rnd(0.85, 1.25), bodyD, bodyN);
+      } else if (r < 0.62) {
+        const ti = (Math.random() * tiers.length) | 0, [tr, ty] = tiers[ti];
+        const a = rnd(0, 6.2832), rr = Math.pow(Math.random(), 0.5) * tr;
+        S.push(C.x + Math.cos(a) * rr, ty + rnd(0, 5.2), C.z + Math.sin(a) * rr, 0, rnd(0.85, 1.25), bodyD, bodyN);
+      } else {
+        const ti = (Math.random() * tiers.length) | 0, [tr, ty] = tiers[ti];
+        const t = Math.pow(Math.random(), 0.7), a = rnd(0, 6.2832);
+        const rr = tr + t * 2.8, up = t * t * 2.4;
+        const gold = t > 0.55 || Math.random() < 0.25;
+        const azr = !gold && Math.random() < 0.35;            // 檐角琉蓝点缀
+        S.push(C.x + Math.cos(a) * rr, ty + 4.6 + up + rnd(-.2, .2), C.z + Math.sin(a) * rr,
+          gold || azr ? 8 : 0, rnd(0.9, 1.4), gold ? goldD : azr ? azrD : bodyD,
+          gold ? goldN : azr ? azrN : bodyN);   // 鎏金 type8 轻闪
+      }
+    }
+    const flyD = [1.0, 0.85, 0.45], flyN = [1.25, 0.95, 0.5];
+    for (let i = 0; i < CONFIG.count.firefly; i++) {
+      const a = rnd(0, 6.2832), rr = Math.pow(Math.random(), 0.7) * 6.5;
+      S.push(C.x + Math.cos(a) * rr, 25 + rnd(0, 2), C.z + Math.sin(a) * rr, 4, rnd(0.8, 1.3), flyD, flyN);
+    }
+  }
+
+  /* ---------- 全域薄雾 ---------- */
+  {
+    const mistD = [0.6, 0.75, 0.72], mistN = [0.5, 0.8, 0.75];
+    for (let i = 0; i < CONFIG.count.mist; i++) {
+      const a = rnd(0, 6.2832), rr = Math.pow(Math.random(), 0.5) * 135;
+      S.push(Math.cos(a) * rr, rnd(0.2, 2.2), Math.sin(a) * rr, 6, rnd(1.6, 2.8), mistD, mistN);
+    }
+  }
+
+  /* ---------- 远景楼阁剪影（雾散景清时显现） ---------- */
+  {
+    const farD = [0.55, 0.62, 0.6], farN = [0.95, 0.8, 0.55];
+    const clusters = 14;
+    for (let i = 0; i < CONFIG.count.distant; i++) {
+      const cIdx = i % clusters;
+      const ca = cIdx / clusters * 6.2832 + rnd(-.12, .12);
+      const cr = rnd(252, 322);
+      const cx = Math.cos(ca) * cr, cz = Math.sin(ca) * cr;
+      const h = rnd(4, 22);
+      const spread = rnd(0, 5) * (1 - h / 26);
+      S.push(cx + rnd(-spread, spread), h, cz + rnd(-spread, spread), 9, rnd(0.9, 1.4), farD, farN, 0, 1);
+    }
+  }
+
+  const { pts, mat } = sinkToPoints(S, VERT_MAIN, {
+    uFountainBoost: { value: 0 }, uRippleBoost: { value: 0 }, uLanternBoost: { value: 0 }, uFireflyBoost: { value: 0 },
+    uCamPos: { value: new THREE.Vector3() }, uIslandC: { value: CONFIG.lm.pengdao.c }
+  });
+  matMain = mat;
+  scene.add(pts);
+}
+
+/* ============================================================================
+   ███ initRings —— 双层仙雾光环
+============================================================================ */
+function initRings() {
+  const S = { radius: [], angle: [], y: [], speed: [], size: [], seed: [], reserve: [], cd: [], cn: [], n: 0 };
+  const pushRing = (count, rMin, rMax, yMin, yMax, speed, sizeRange, cd, cn, reserveRatio) => {
+    for (let i = 0; i < count; i++) {
+      S.radius.push(rnd(rMin, rMax));
+      S.angle.push(rnd(0, 6.2832));
+      S.y.push(rnd(yMin, yMax));
+      S.speed.push(speed * rnd(0.75, 1.25));
+      S.size.push(rnd(sizeRange[0], sizeRange[1]));
+      S.seed.push(Math.random());
+      S.reserve.push(i < count * reserveRatio ? 1 : 0);
+      S.cd.push(cd[0], cd[1], cd[2]); S.cn.push(cn[0], cn[1], cn[2]);
+      S.n++;
+    }
+  };
+  pushRing(CONFIG.count.ringInner, 138, 158, 6, 34, 0.11, [1.4, 2.4], [0.85, 0.82, 0.7], [1.1, 0.9, 0.55], 0.35);
+  pushRing(CONFIG.count.ringOuter, 172, 205, 4, 44, -0.038, [2.0, 3.4], [0.62, 0.82, 0.85], [0.5, 0.85, 0.95], 0.35);
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(S.n * 3), 3));
+  g.setAttribute('aRadius', new THREE.Float32BufferAttribute(S.radius, 1));
+  g.setAttribute('aAngle', new THREE.Float32BufferAttribute(S.angle, 1));
+  g.setAttribute('aY', new THREE.Float32BufferAttribute(S.y, 1));
+  g.setAttribute('aSpeed', new THREE.Float32BufferAttribute(S.speed, 1));
+  g.setAttribute('aSize', new THREE.Float32BufferAttribute(S.size, 1));
+  g.setAttribute('aSeed', new THREE.Float32BufferAttribute(S.seed, 1));
+  g.setAttribute('aReserve', new THREE.Float32BufferAttribute(S.reserve, 1));
+  g.setAttribute('aColorDay', new THREE.Float32BufferAttribute(S.cd, 3));
+  g.setAttribute('aColorNight', new THREE.Float32BufferAttribute(S.cn, 3));
+  matRing = new THREE.ShaderMaterial({
+    vertexShader: VERT_RING, fragmentShader: FRAG_GLOW,
+    uniforms: { uTime: { value: 0 }, uNight: { value: 0 }, uBurstT: { value: -100 }, uPR: { value: 1 }, uWide: { value: 0 }, uGlow: { value: 0 } },
+    transparent: true, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending
+  });
+  const pts = new THREE.Points(g, matRing);
+  pts.frustumCulled = false;
+  TOTAL += S.n;
+  scene.add(pts);
+}
+
+/* ============================================================================
+   ███ initBackground —— 白昼云絮+淡青烟云 / 夜景星点+孔明灯（视差纵深）
+============================================================================ */
+function initBackground() {
+  const S = makeSink();
+  const cloudD = [0.99, 0.95, 0.86], cloudN = [0, 0, 0];        // 暖白云絮（复原图金色天光）
+  const starD = [0, 0, 0], starN = [0.75, 0.85, 1.0];
+  const streakD = [0.88, 0.79, 0.62], streakN = [0.25, 0.5, 0.55];  // 远景鎏金烟霞
+  const lampD = [0, 0, 0], lampN = [1.25, 0.78, 0.38];
+  S.yBase = [];
+  const pushBG = (kind, x, y, z, size, cd, cn, yb, reserve = 0) => {
+    S.push(x, y, z, kind, size, cd, cn, reserve);
+    S.yBase.push(yb);
+  };
+  for (let i = 0; i < CONFIG.count.cloud; i++) {
+    const a = rnd(0, 6.2832), el = rnd(0.06, 1.2), r = rnd(430, 540);
+    const x = Math.cos(a) * Math.cos(el) * r, y = Math.sin(el) * r * 0.85 + 40, z = Math.sin(a) * Math.cos(el) * r;
+    pushBG(0, x, y, z, rnd(4, 9), cloudD, cloudN, y, i < CONFIG.count.cloud * 0.4 ? 1 : 0);
+  }
+  for (let i = 0; i < CONFIG.count.star; i++) {
+    const a = rnd(0, 6.2832), el = rnd(0.05, 1.35), r = rnd(430, 540);
+    pushBG(1, Math.cos(a) * Math.cos(el) * r, Math.sin(el) * r * 0.85 + 40, Math.sin(a) * Math.cos(el) * r, rnd(1.2, 2.4), starD, starN, 0);
+  }
+  for (let i = 0; i < CONFIG.count.streak; i++) {      // 远景淡青流动烟云
+    const a = rnd(0, 6.2832), el = rnd(0.04, 0.7), r = rnd(470, 560);
+    const x = Math.cos(a) * Math.cos(el) * r, y = Math.sin(el) * r * 0.6 + 30, z = Math.sin(a) * Math.cos(el) * r;
+    pushBG(2, x, y, z, rnd(7, 13), streakD, streakN, y);
+  }
+  for (let i = 0; i < CONFIG.count.skyLantern; i++) {  // 孔明灯：世界各处缓缓升空
+    const a = rnd(0, 6.2832), r = rnd(90, 480);
+    pushBG(3, Math.cos(a) * r, rnd(0, 175), Math.sin(a) * r, rnd(1.8, 3.2), lampD, lampN, rnd(0, 175));
+  }
+  const { pts, mat } = sinkToPoints(S, VERT_BG, { uWide: { value: 0 }, uCamPos: { value: new THREE.Vector3() } });
+  matBg = mat;
+  pts.geometry.setAttribute('aYBase', new THREE.Float32BufferAttribute(S.yBase, 1));
+  pts.geometry.attributes.aYBase.needsUpdate = true;
+  scene.add(pts);
+}
+
+/* ============================================================================
+   ███ initPetals —— 双手OK 鎏金花瓣雨
+============================================================================ */
+function initPetals() {
+  const n = CONFIG.count.petal;
+  const pos = [], cd = [], cn = [], size = [], seed = [], delay = [], swing = [];
+  const petalD = [1.05, 0.85, 0.55], petalN = [1.3, 1.0, 0.6];
+  const roseD = [1.0, 0.75, 0.72], roseN = [1.2, 0.85, 0.85];
+  for (let i = 0; i < n; i++) {
+    const a = rnd(0, 6.2832), r = Math.pow(Math.random(), 0.6) * 165;
+    pos.push(Math.cos(a) * r, rnd(65, 135), Math.sin(a) * r);
+    const rose = Math.random() < 0.4;
+    const cD = rose ? roseD : petalD, cN = rose ? roseN : petalN;
+    cd.push(...cD); cn.push(...cN);
+    size.push(rnd(1.2, 2.2)); seed.push(Math.random());
+    delay.push(rnd(0, 0.9)); swing.push(rnd(1.5, 4.5));
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('aColorDay', new THREE.Float32BufferAttribute(cd, 3));
+  g.setAttribute('aColorNight', new THREE.Float32BufferAttribute(cn, 3));
+  g.setAttribute('aSize', new THREE.Float32BufferAttribute(size, 1));
+  g.setAttribute('aSeed', new THREE.Float32BufferAttribute(seed, 1));
+  g.setAttribute('aDelay', new THREE.Float32BufferAttribute(delay, 1));
+  g.setAttribute('aSwing', new THREE.Float32BufferAttribute(swing, 1));
+  matPetal = new THREE.ShaderMaterial({
+    vertexShader: VERT_PETAL, fragmentShader: FRAG_GLOW,
+    uniforms: { uTime: { value: 0 }, uNight: { value: 0 }, uPR: { value: 1 }, uPetalT: { value: -100 } },
+    transparent: true, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending
+  });
+  pointsPetal = new THREE.Points(g, matPetal);
+  pointsPetal.frustumCulled = false;
+  TOTAL += n;
+  scene.add(pointsPetal);
+}
+
+/* ============================================================================
+   ███ initLakeLotus —— 兰花指 湖心莲绽（莲花+波纹+飘瓣）
+============================================================================ */
+function initLakeLotus() {
+  const islandC = CONFIG.lm.pengdao.c, bridgeC = CONFIG.lm.bridge.c;
+  // 花心分布：环岛湖面 18 朵 + 九曲桥湖面 8 朵
+  const centers = [];
+  for (let i = 0; i < 18; i++) { const a = i / 18 * 6.2832 + rnd(-.15, .15), r = rnd(25, 40); centers.push([islandC.x + Math.cos(a) * r, islandC.z + Math.sin(a) * r]); }
+  for (let i = 0; i < 8; i++) { const a = rnd(0, 6.2832), r = rnd(9, 18); centers.push([bridgeC.x - 12 + Math.cos(a) * r, bridgeC.z + Math.sin(a) * r]); }
+  const A = [], CD = [], CN = [], SZ = [], SD = [], KD = [], ST = [], RAD = [];
+  let n = 0;
+  const push = (c, kind, size, cd, cn, stagger, rad) => {
+    A.push(c[0], 0.5, c[1]); KD.push(kind); SZ.push(size); SD.push(Math.random());
+    ST.push(stagger); RAD.push(rad); CD.push(...cd); CN.push(...cn); n++;
+  };
+  const petD = [1.0, 0.72, 0.78], petN = [1.15, 0.8, 0.9];
+  const whiteD = [1.0, 0.92, 0.85], whiteN = [1.1, 1.0, 0.9];
+  const ripD = [0.5, 0.75, 0.85], ripN = [0.45, 0.8, 0.98];
+  const perFlower = Math.floor(CONFIG.count.lakeLotus * 0.62 / centers.length);
+  const perRipple = Math.floor(CONFIG.count.lakeLotus * 0.22 / centers.length);
+  const perDrift = Math.floor(CONFIG.count.lakeLotus * 0.16 / centers.length);
+  for (const c of centers) {
+    for (let i = 0; i < perFlower; i++) {         // 花瓣
+      const white = Math.random() < 0.35;
+      push(c, 0, rnd(1.0, 1.6), white ? whiteD : petD, white ? whiteN : petN, Math.random(), rnd(1.6, 3.0));
+    }
+    for (let i = 0; i < perRipple; i++) push(c, 1, rnd(0.9, 1.4), ripD, ripN, 0, rnd(0.7, 1.3));  // 波纹
+    for (let i = 0; i < perDrift; i++) push(c, 2, rnd(0.9, 1.4), petD, petN, Math.random(), 1);   // 飘瓣
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(A, 3));
+  g.setAttribute('aPosA', new THREE.Float32BufferAttribute(A, 3));
+  g.setAttribute('aColorDay', new THREE.Float32BufferAttribute(CD, 3));
+  g.setAttribute('aColorNight', new THREE.Float32BufferAttribute(CN, 3));
+  g.setAttribute('aSize', new THREE.Float32BufferAttribute(SZ, 1));
+  g.setAttribute('aSeed', new THREE.Float32BufferAttribute(SD, 1));
+  g.setAttribute('aKind', new THREE.Float32BufferAttribute(KD, 1));
+  g.setAttribute('aStagger', new THREE.Float32BufferAttribute(ST, 1));
+  g.setAttribute('aRad', new THREE.Float32BufferAttribute(RAD, 1));
+  matLotus = new THREE.ShaderMaterial({
+    vertexShader: VERT_LOTUS, fragmentShader: FRAG_GLOW,
+    uniforms: { uTime: { value: 0 }, uNight: { value: 0 }, uPR: { value: 1 }, uLotusT: { value: -1 } },
+    transparent: true, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending
+  });
+  pointsLotus = new THREE.Points(g, matLotus);
+  pointsLotus.frustumCulled = false;
+  TOTAL += n;
+  scene.add(pointsLotus);
+}
+
+/* ============================================================================
+   ███ initHiddenEasterEgg —— 海岳开襟：鎏金莲花 + 萤火 + 粒子古诗
+============================================================================ */
+function initHiddenEasterEgg() {
+  const C = CONFIG.lm.egg.c;
+  const A = [], B = [], CD = [], CN = [], SZ = [], SD = [], KD = [], RISE = [];
+  let n = 0;
+  const push = (ax, ay, az, bx, by, bz, kind, size, cd, cn, rise = 0) => {
+    A.push(ax, ay, az); B.push(bx, by, bz); KD.push(kind); SZ.push(size);
+    SD.push(Math.random()); CD.push(...cd); CN.push(...cn); RISE.push(rise); n++;
+  };
+  const petalD = [1.0, 0.8, 0.42], petalN = [1.25, 0.95, 0.55];
+  const heartD = [1.0, 0.65, 0.5], heartN = [1.3, 0.9, 0.7];
+  const goldD = [1.05, 0.85, 0.45], goldN = [1.3, 1.0, 0.55];
+  const buildLotus = (petals, len, wid, lift, seedOff) => {
+    const per = Math.floor(CONFIG.count.lotus * 0.6 / (14 + 10));
+    for (let k = 0; k < petals; k++) {
+      const th = k / petals * 6.2832 + seedOff;
+      const dx = Math.cos(th), dz = Math.sin(th);
+      const px = -dz, pz = dx;
+      for (let i = 0; i < per; i++) {
+        const t = Math.pow(Math.random(), 0.8), u = rnd(-1, 1);
+        const wProf = Math.sin(Math.PI * t) * wid;
+        const ax = dx * (t * 0.5) + px * u * wProf * 0.18;
+        const ay = 0.4 + t * len * 1.05;
+        const az = dz * (t * 0.5) + pz * u * wProf * 0.18;
+        const rr = t * len * 0.72;
+        const bloomY = Math.sin(t * 1.35) * lift + t * 1.2;
+        const bx = dx * rr + px * u * wProf;
+        const by = 0.4 + bloomY + Math.abs(u) * t * 1.1;
+        const bz = dz * rr + pz * u * wProf;
+        push(C.x + ax, ay, C.z + az, C.x + bx, by, C.z + bz, 0, rnd(1.0, 1.6), petalD, petalN, rnd(0.5, 2.2));
+      }
+    }
+  };
+  buildLotus(14, 8.2, 2.6, 4.6, 0);
+  buildLotus(10, 5.6, 1.9, 3.2, 0.22);
+  for (let i = 0; i < CONFIG.count.stamen; i++) {
+    const a = rnd(0, 6.2832), rr = Math.pow(Math.random(), 0.6) * 1.6;
+    push(C.x + Math.cos(a) * rr * 0.2, 0.6 + rr * 2.2, C.z + Math.sin(a) * rr * 0.2,
+         C.x + Math.cos(a) * rr, 6.4 + rnd(0, 2.4), C.z + Math.sin(a) * rr,
+         0, rnd(0.9, 1.4), heartD, heartN, rnd(1, 2.5));
+  }
+  for (let i = 0; i < CONFIG.count.eggFly; i++) {
+    push(C.x, 2.0, C.z, C.x, 2.0, C.z, 1, rnd(0.9, 1.6), goldD, goldN);
+  }
+  {
+    const cv = document.createElement('canvas');
+    cv.width = 1024; cv.height = 300;
+    const ctx = cv.getContext('2d');
+    ctx.fillStyle = '#fff';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = '700 92px "KaiTi","STKaiti","Noto Serif SC",serif';
+    ctx.fillText(CONFIG.egg.poem[0], 512, 80);
+    ctx.fillText(CONFIG.egg.poem[1], 512, 210);
+    const data = ctx.getImageData(0, 0, 1024, 300).data;
+    const worldW = 58, scale = worldW / 1024;
+    for (let y = 0; y < 300; y += 3) for (let x = 0; x < 1024; x += 3) {
+      if (data[(y * 1024 + x) * 4 + 3] > 120) {
+        const wx = C.x + (x - 512) * scale;
+        const wy = 26 + (150 - y) * scale * 1.05;
+        const wz = C.z + 2;
+        push(wx, 0.4, wz, wx, wy, wz, 2, rnd(0.9, 1.4), goldD, goldN);
+      }
+    }
+    CONFIG.count.poem = n;
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(A, 3));
+  g.setAttribute('aPosA', new THREE.Float32BufferAttribute(A, 3));
+  g.setAttribute('aPosB', new THREE.Float32BufferAttribute(B, 3));
+  g.setAttribute('aColorDay', new THREE.Float32BufferAttribute(CD, 3));
+  g.setAttribute('aColorNight', new THREE.Float32BufferAttribute(CN, 3));
+  g.setAttribute('aSize', new THREE.Float32BufferAttribute(SZ, 1));
+  g.setAttribute('aSeed', new THREE.Float32BufferAttribute(SD, 1));
+  g.setAttribute('aKind', new THREE.Float32BufferAttribute(KD, 1));
+  g.setAttribute('aRise', new THREE.Float32BufferAttribute(RISE, 1));
+  matEgg = new THREE.ShaderMaterial({
+    vertexShader: VERT_EGG, fragmentShader: FRAG_GLOW,
+    uniforms: { uTime: { value: 0 }, uNight: { value: 0 }, uPR: { value: 1 }, uEggT: { value: -1 } },
+    transparent: true, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending
+  });
+  pointsEgg = new THREE.Points(g, matEgg);
+  pointsEgg.frustumCulled = false;
+  pointsEgg.visible = false;
+  TOTAL += n;
+  scene.add(pointsEgg);
+}
+
+/* ============================================================================
+   ███ initDayNightMode —— 昼夜切换（2s 平滑过渡 + 宫门音效）
+============================================================================ */
+function initDayNightMode() {
+  state.nightTarget = state.nightTarget === 1 ? 0 : 1;
+  const toNight = state.nightTarget === 1;
+  showToast(toNight ? '白昼盛景 → 灯火夜游模式' : '灯火夜游 → 白昼盛景');
+  document.body.classList.toggle('night', toNight);
+  document.getElementById('hMode').textContent = toNight ? '灯火夜游' : '白昼盛景';
+  sfxDoor();
+}
+
+/* ============================================================================
+   ███ initMediaPipe —— HandLandmarker 双手追踪
+============================================================================ */
+const hand = {
+  detected: false, gesture: 'none', holdGesture: 'none', holdStart: 0, fired: false,
+  scale: 0, baseline: 0, palmX: 0.5, palmY: 0.5, landmarks: null,
+  // 双手状态
+  combo: 'none', comboSince: 0, comboFired: false, comboBase: 0,
+  circleBuf: [], circleDir: 0, fistStillBuf: [],
+  sfxArmed: { bell: true, jade: true, whooshUp: true, whooshDown: true }
+};
+let landmarker = null;
+const GESTURE_NAME = { open:'张开手掌', fist:'握拳', thumbs:'竖大拇指', victory:'比耶手势', ok:'OK 手势', orchid:'兰花指', none:'未检测' };
+const COMBO_NAME = {
+  spread:'双手舒展 · 雾散景清', fog:'双拳合拢 · 暮雾升腾', circle:'云台转景 · 画圈巡游',
+  orchid:'兰亭点水 · 莲绽湖心', petal:'双手OK · 鎏金花瓣雨'
+};
+const COMBO_SHORT = { spread:'舒展·雾散', fog:'合拢·雾起', circle:'画圈巡游', orchid:'莲绽湖心', petal:'花瓣雨' };
+const BONES = [[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[5,9],[9,10],[10,11],[11,12],[9,13],[13,14],[14,15],[15,16],[13,17],[17,18],[18,19],[19,20],[0,17]];
+
+async function initMediaPipe() {
+  const video = document.getElementById('cam');
+  try {
+    if (!navigator.mediaDevices?.getUserMedia) throw new Error('no camera api');
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480, facingMode: 'user' } });
+    video.srcObject = stream;
+    await video.play();
+  } catch (e) {
+    showToast('摄像头不可用 · 已进入自动巡游模式', false, 3400);
+  }
+  try {
+    const vision = await FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/wasm');
+    landmarker = await HandLandmarker.createFromOptions(vision, {
+      baseOptions: {
+        modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',
+        delegate: 'GPU'
+      },
+      runningMode: 'VIDEO', numHands: 2      // 双手同步追踪（42 地标点）
+    });
+  } catch (e) {
+    showToast('手势模块加载失败 · 已进入自动巡游模式', false, 3400);
+  }
+}
+
+/* —— 手势分类（单手 21 地标） —— */
+function classifyGesture(lm) {
+  const d = (a, b) => Math.hypot(lm[a].x - lm[b].x, lm[a].y - lm[b].y);
+  const ext = (tip, pip) => d(tip, 0) > d(pip, 0) * 1.28;
+  const f1 = ext(8, 6), f2 = ext(12, 10), f3 = ext(16, 14), f4 = ext(20, 18);
+  const thumbUp = d(4, 17) > d(2, 17) * 1.3 && lm[4].y < lm[2].y - 0.02;
+  const nFingers = [f1, f2, f3, f4].filter(Boolean).length;
+  const pinch = d(4, 8) < CONFIG.pinchDist && d(4, 8) < d(4, 12);
+  const orchid = d(4, 12) < CONFIG.pinchDist * 1.35 && f1 && (f3 || f4) && !pinch;  // 兰花指：拇中相掐、食指外翘
+  if (orchid) return 'orchid';
+  if (pinch && f2 && f3 && f4) return 'ok';
+  if (thumbUp && nFingers === 0 && lm[4].y < lm[0].y - 0.06) return 'thumbs';
+  if (f1 && f2 && !f3 && !f4) return 'victory';
+  if (nFingers >= 4 || (nFingers >= 3 && thumbUp)) return 'open';
+  if (nFingers === 0 && !thumbUp) return 'fist';
+  return 'none';
+}
+
+/* —— 画圈检测：轨迹累计带符号角度 —— */
+function detectCircle(buf) {
+  if (buf.length < 12) return 0;
+  const cx = buf.reduce((s, p) => s + p.x, 0) / buf.length;
+  const cy = buf.reduce((s, p) => s + p.y, 0) / buf.length;
+  let acc = 0;
+  for (let i = 1; i < buf.length; i++) {
+    const a = buf[i - 1], b = buf[i];
+    const ax = a.x - cx, ay = a.y - cy, bx = b.x - cx, by = b.y - cy;
+    const la = Math.hypot(ax, ay), lb = Math.hypot(bx, by);
+    if (la < 0.02 || lb < 0.02) continue;
+    acc += Math.atan2(ax * by - ay * bx, ax * bx + ay * by);
+  }
+  return Math.abs(acc) > CONFIG.twoHand.circleMinAngle ? Math.sign(acc) : 0;
+}
+
+/* ============================================================================
+   ███ updateHandState —— 每帧：识别 / 防误触 / 连续控制 / 双手组合 / HUD
+============================================================================ */
+function updateHandState(now, dt) {
+  const video = document.getElementById('cam');
+  if (!landmarker || video.readyState < 2) return;
+  let res = null;
+  try { res = landmarker.detectForVideo(video, now); } catch (e) { return; }
+  const lms = res?.landmarks;
+  if (!lms || !lms.length) {
+    if (hand.detected) {
+      hand.detected = false; hand.gesture = 'none'; hand.combo = 'none'; hand.circleDir = 0;
+      hand.circleBuf.length = 0; hand.fistStillBuf.length = 0;
+      document.getElementById('hud').classList.remove('tracking');
+      document.getElementById('hGesture').innerHTML = '<span id="statusDot"></span>未检测';
+    }
+    return;
+  }
+  if (!hand.detected) {
+    showToast('盛景扫描中 · 手已接入');
+    document.getElementById('hud').classList.add('tracking');
+    sfxScan();
+  }
+  hand.detected = true;
+  hand.landmarks = lms[0];
+  state.lastHandT = state.time;
+
+  // —— 逐手信息（最多两手，共 42 地标） ——
+  const infos = lms.map(lm => ({
+    lm, g: classifyGesture(lm),
+    px: 1 - lm[9].x, py: lm[9].y,
+    scale: Math.hypot(lm[0].x - lm[9].x, lm[0].y - lm[9].y)
+  }));
+  const primary = infos[0];
+  const gesture = primary.g;
+  hand.gesture = gesture;
+  hand.palmX = primary.px; hand.palmY = primary.py;
+  hand.scale = primary.scale;
+
+  /* ============ 双手组合手势（优先判定） ============ */
+  let comboContinuous = false;
+  let hudGesture = GESTURE_NAME[gesture] || '识别中';
+  if (infos.length < 2 && hand.combo !== 'none') {    // 手数不足时重置组合状态，防止目标卡滞
+    hand.combo = 'none'; hand.circleDir = 0;
+    hand.circleBuf.length = 0; hand.fistStillBuf.length = 0;
+  }
+  if (infos.length === 2) {
+    const [hA, hB] = infos;
+    const pd = Math.hypot(hA.px - hB.px, hA.py - hB.py);   // 双掌心距
+    let type = 'none';
+    if (hA.g === 'open' && hB.g === 'open') type = 'spread';
+    else if (hA.g === 'fist' && hB.g === 'fist') type = 'fog';
+    else if ((hA.g === 'fist') !== (hB.g === 'fist')) type = 'circle';
+    else if (hA.g === 'orchid' && hB.g === 'orchid') type = 'orchid';
+    else if (hA.g === 'ok' && hB.g === 'ok') type = 'petal';
+    if (type !== hand.combo) { hand.combo = type; hand.comboSince = state.time; hand.comboFired = false; hand.comboBase = pd; }
+    const comboHeld = state.time - hand.comboSince >= CONFIG.twoHand.hold;   // 0.5s 防误触
+    if (comboHeld) {
+      if (type === 'spread') {                       // 双手拉开 → 晨雾散开、远景显现
+        comboContinuous = true;
+        const pull = pd - hand.comboBase;
+        state.spreadTarget = THREE.MathUtils.clamp(pull * CONFIG.twoHand.spreadGain, 0, 1);
+        state.fogTarget = 0;
+        if (pull > 0.05 && hand.sfxArmed.whooshUp) { sfxWhoosh(true); hand.sfxArmed.whooshUp = false; }
+        if (pull < 0.02) hand.sfxArmed.whooshUp = true;
+        hudGesture = COMBO_SHORT.spread + (state.spreadTarget > 0.15 ? '·景显' : '');
+      } else if (type === 'fog') {                   // 双拳合拢 → 暮雾升腾
+        comboContinuous = true;
+        const push = hand.comboBase - pd;
+        state.fogTarget = THREE.MathUtils.clamp(push * CONFIG.twoHand.fogGain, 0, 1);
+        state.spreadTarget = 0;
+        if (push > 0.05 && hand.sfxArmed.whooshDown) { sfxWhoosh(false); hand.sfxArmed.whooshDown = false; }
+        if (push < 0.02) hand.sfxArmed.whooshDown = true;
+        hudGesture = COMBO_SHORT.fog + (state.fogTarget > 0.15 ? '·雾浓' : '');
+      } else if (type === 'circle') {                // 一拳定身 + 另一手画圈 → 云台巡游
+        const fistHand = hA.g === 'fist' ? hA : hB;
+        const drawHand = hA.g === 'fist' ? hB : hA;
+        hand.fistStillBuf.push({ x: fistHand.px, y: fistHand.py, t: state.time });
+        while (hand.fistStillBuf.length && state.time - hand.fistStillBuf[0].t > 0.6) hand.fistStillBuf.shift();
+        const fMove = hand.fistStillBuf.length > 1
+          ? Math.hypot(fistHand.px - hand.fistStillBuf[0].x, fistHand.py - hand.fistStillBuf[0].y) : 1;
+        hand.circleBuf.push({ x: drawHand.px, y: drawHand.py, t: state.time });
+        while (hand.circleBuf.length && state.time - hand.circleBuf[0].t > 1.1) hand.circleBuf.shift();
+        if (hand.circleBuf.length > 50) hand.circleBuf.shift();
+        const dir = fMove < CONFIG.twoHand.circleStillDist ? detectCircle(hand.circleBuf) : 0;
+        hand.circleDir = dir;
+        if (dir !== 0) {
+          comboContinuous = true;
+          hudGesture = COMBO_SHORT.circle + (dir > 0 ? '·顺' : '·逆');
+        }
+      } else if (type === 'orchid' && !hand.comboFired) {   // 双兰花指 → 湖心莲绽
+        hand.comboFired = true;
+        state.lotusT0 = state.time;
+        sfxWater(); sfxEnsemble();
+        showToast(COMBO_NAME.orchid, true);
+        hudGesture = COMBO_SHORT.orchid;
+      } else if (type === 'petal' && !hand.comboFired) {    // 双OK → 鎏金花瓣雨
+        hand.comboFired = true;
+        state.petalT = state.time;
+        sfxChime(); sfxEnsemble();
+        showToast(COMBO_NAME.petal, true, 3000);
+        hudGesture = COMBO_SHORT.petal;
+      }
+    }
+    if (type !== 'spread' && type !== 'fog') { /* 松开后目标自然回落 */ }
+  }
+  if (hand.combo !== 'spread') state.spreadTarget = Math.max(0, state.spreadTarget - dt * 0.4);
+  if (hand.combo !== 'fog') state.fogTarget = Math.max(0, state.fogTarget - dt * 0.4);
+  if (hand.combo !== 'circle') hand.circleDir = 0;
+
+  /* ============ 原单手逻辑（100% 保留） ============ */
+  const suppressDiscrete = infos.length === 2 && (hand.combo === 'petal' || hand.combo === 'orchid');
+  const effGesture = suppressDiscrete && gesture === 'ok' ? 'none' : gesture;
+  if (effGesture !== hand.holdGesture) { hand.holdGesture = effGesture; hand.holdStart = state.time; hand.fired = false; hand.baseline = hand.scale; }
+  const holdTime = state.time - hand.holdStart;
+  const engaged = holdTime >= CONFIG.gestureHold;
+
+  if (engaged && !hand.fired) {
+    hand.fired = true;
+    hand.baseline = hand.scale;
+    if (effGesture === 'thumbs') initDayNightMode();
+    if (effGesture === 'victory') { state.burstT = state.time; sfxBurst(); showToast('漫天光雨 · 盛景绽放'); }
+    if (effGesture === 'ok') {
+      const dy = ((cam.yaw - CONFIG.defYaw) % (Math.PI*2) + Math.PI*3) % (Math.PI*2) - Math.PI;
+      cam.tYaw = cam.yaw - dy; cam.tPitch = CONFIG.defPitch; cam.tDist = CONFIG.defDist;
+      sfxReset();
+      showToast('视角复位 · 俯瞰万园之园');
+    }
+  }
+
+  if (engaged && !comboContinuous) {                  // 组合连续控制时抑制单手连续控制
+    if (effGesture === 'open') {
+      let vx = hand.palmX - 0.5;
+      if (Math.abs(vx) > CONFIG.deadZone) cam.tYaw += (vx - Math.sign(vx)*CONFIG.deadZone) * CONFIG.rotateGain * dt;
+      let vy = hand.palmY - 0.5;
+      if (Math.abs(vy) > CONFIG.deadZone) cam.tPitch = THREE.MathUtils.clamp(cam.tPitch + (vy > 0 ? -1 : 1) * CONFIG.pitchGain * dt * Math.abs(vy), 0.18, 1.25);
+      const push = hand.scale - hand.baseline;
+      if (push > CONFIG.pushPullThresh) {
+        cam.tDist = Math.max(CONFIG.minDist, cam.tDist - (push - CONFIG.pushPullThresh) * CONFIG.zoomGain * dt * 6);
+        if (hand.sfxArmed.jade) { sfxJade(); hand.sfxArmed.jade = false; }
+      } else if (push < CONFIG.pushPullThresh * 0.4) hand.sfxArmed.jade = true;
+    }
+    if (effGesture === 'fist') {
+      const pull = hand.baseline - hand.scale;
+      if (pull > CONFIG.pushPullThresh) {
+        cam.tDist = Math.min(CONFIG.maxDist, cam.tDist + (pull - CONFIG.pushPullThresh) * CONFIG.zoomGain * dt * 6);
+        if (hand.sfxArmed.bell) { sfxBell(); hand.sfxArmed.bell = false; }
+      } else if (pull < CONFIG.pushPullThresh * 0.4) hand.sfxArmed.bell = true;
+      hand.baseline += (hand.scale - hand.baseline) * 0.02;   // 握拳缓慢自适应漂移
+    }
+    if (effGesture === 'open' && Math.abs(hand.scale - hand.baseline) < 0.02) {
+      hand.baseline += (hand.scale - hand.baseline) * 0.02;
+    }
+  }
+
+  /* —— HUD 手势名（双手组合优先显示） —— */
+  const gEl = document.getElementById('hGesture');
+  const txt = '<span id="statusDot"></span>' + hudGesture;
+  if (gEl.innerHTML !== txt) gEl.innerHTML = txt;
+
+  drawSkeleton(lms);
+}
+
+function drawSkeleton(lms) {
+  const cv = document.getElementById('skel'), ctx = cv.getContext('2d');
+  ctx.clearRect(0, 0, cv.width, cv.height);
+  ctx.strokeStyle = 'rgba(120,220,200,.85)'; ctx.lineWidth = 1.5;
+  ctx.fillStyle = 'rgba(255,215,120,.95)';
+  for (const lm of lms) {
+    ctx.beginPath();
+    for (const [a, b] of BONES) {
+      ctx.moveTo(lm[a].x * cv.width, lm[a].y * cv.height);
+      ctx.lineTo(lm[b].x * cv.width, lm[b].y * cv.height);
+    }
+    ctx.stroke();
+    for (const p of lm) { ctx.beginPath(); ctx.arc(p.x * cv.width, p.y * cv.height, 2.2, 0, 6.2832); ctx.fill(); }
+  }
+}
+
+/* ============================================================================
+   ███ animate —— 主循环
+============================================================================ */
+function animate() {
+  requestAnimationFrame(animate);
+  const nowMs = performance.now();
+  const dt = Math.min((nowMs - lastNow) / 1000, 0.05);
+  lastNow = nowMs;
+  state.time += dt;
+  const T = state.time;
+
+  /* —— 无手自动巡游 / 画圈巡游 —— */
+  if (!hand.detected && T - state.lastHandT > CONFIG.idleOrbitAfter) cam.tYaw += dt * 0.055;
+  if (hand.circleDir !== 0) cam.tYaw += hand.circleDir * CONFIG.twoHand.circleSpeed * dt;
+
+  /* —— 相机弹簧阻尼 —— */
+  cam.tDist = THREE.MathUtils.clamp(cam.tDist, CONFIG.minDist, CONFIG.maxDist);
+  [cam.yaw, cam.vy] = springStep(cam.yaw, cam.vy, cam.tYaw, CONFIG.springK * 0.85, CONFIG.springC, dt);
+  [cam.pitch, cam.vp] = springStep(cam.pitch, cam.vp, cam.tPitch, CONFIG.springK, CONFIG.springC, dt);
+  [cam.dist, cam.vd] = springStep(cam.dist, cam.vd, cam.tDist, CONFIG.springK, CONFIG.springC, dt);
+  const tg = CONFIG.camTarget;
+  camera.position.set(
+    tg.x + cam.dist * Math.cos(cam.pitch) * Math.sin(cam.yaw),
+    tg.y + cam.dist * Math.sin(cam.pitch),
+    tg.z + cam.dist * Math.cos(cam.pitch) * Math.cos(cam.yaw)
+  );
+  camera.lookAt(tg);
+  camera.fov = THREE.MathUtils.clamp(
+    CONFIG.fovNear + (cam.dist - CONFIG.defDist) / (CONFIG.maxDist - CONFIG.defDist) * (CONFIG.fovFar - CONFIG.fovNear),
+    CONFIG.fovNear, CONFIG.fovFar);
+  camera.updateProjectionMatrix();
+
+  /* —— 昼夜过渡 —— */
+  state.night += THREE.MathUtils.clamp(state.nightTarget - state.night, -dt / CONFIG.nightTransition, dt / CONFIG.nightTransition);
+  renderer.setClearColor(new THREE.Color().lerpColors(CONFIG.dayBg, CONFIG.nightBg, state.night));
+
+  /* —— 凑近景观：专属特效强化 —— */
+  const boostOf = (c) => {
+    const d = Math.hypot(camera.position.x - c.x, camera.position.z - c.z);
+    const [near, far] = CONFIG.nearBoostRange;
+    return THREE.MathUtils.clamp(1 - (d - near) / (far - near), 0, 1);
+  };
+  state.boosts.fountain = boostOf(CONFIG.lm.dashuifa.c);
+  state.boosts.ripple   = boostOf(CONFIG.lm.pengdao.c);
+  state.boosts.lantern  = boostOf(CONFIG.lm.bridge.c);
+  state.boosts.firefly  = boostOf(CONFIG.lm.fanghu.c);
+  state.wide = THREE.MathUtils.smoothstep(cam.dist, 190, CONFIG.maxDist);
+
+  /* —— 舒展 / 暮雾 平滑跟随 —— */
+  state.spread += (state.spreadTarget - state.spread) * Math.min(dt * 2.2, 1);
+  state.fog += (state.fogTarget - state.fog) * Math.min(dt * 2.2, 1);
+
+  /* —— 动态辉光：昼随云影缓波 / 夜随灯影明灭 —— */
+  state.glow = state.night > 0.5
+    ? 0.2 * Math.sin(T * 0.35) * state.night
+    : 0.13 * Math.sin(T * 0.12) * (1 - state.night);
+
+  /* —— 隐藏彩蛋 —— */
+  const E = CONFIG.lm.egg.c, eg = state.egg;
+  const dEgg = Math.hypot(camera.position.x - E.x, camera.position.z - E.z);
+  const inZone = dEgg < CONFIG.egg.radius && camera.position.y > CONFIG.egg.minHeight;
+  if (!eg.active && !eg.cooldown && inZone) {
+    eg.active = true; eg.start = T;
+    pointsEgg.visible = true;
+    sfxGuzheng();
+    showToast('海岳开襟 · 发现新景', true, 3600);
+    document.getElementById('hEgg').textContent = '海岳开襟 · 已发现';
+  }
+  if (eg.active) {
+    const p = (T - eg.start) / CONFIG.egg.duration;
+    matEgg.uniforms.uEggT.value = Math.min(p, 1);
+    if (p >= 1) { eg.active = false; eg.cooldown = true; pointsEgg.visible = false; matEgg.uniforms.uEggT.value = -1; }
+  }
+  if (eg.cooldown && dEgg > CONFIG.egg.radius * 1.6) eg.cooldown = false;
+
+  /* —— 同步 uniforms —— */
+  for (const m of [matMain, matRing, matBg, matEgg, matPetal, matLotus]) {
+    m.uniforms.uTime.value = T;
+    m.uniforms.uNight.value = state.night;
+    m.uniforms.uPR.value = renderer.getPixelRatio();
+  }
+  matMain.uniforms.uBurstT.value = state.burstT;
+  matRing.uniforms.uBurstT.value = state.burstT;
+  matMain.uniforms.uFountainBoost.value = state.boosts.fountain;
+  matMain.uniforms.uRippleBoost.value = state.boosts.ripple;
+  matMain.uniforms.uLanternBoost.value = state.boosts.lantern;
+  matMain.uniforms.uFireflyBoost.value = state.boosts.firefly;
+  matMain.uniforms.uCamPos.value.copy(camera.position);
+  matMain.uniforms.uSpread.value = state.spread;
+  matMain.uniforms.uFog.value = state.fog;
+  matMain.uniforms.uReveal.value = state.spread;
+  matMain.uniforms.uGlow.value = state.glow;
+  matRing.uniforms.uWide.value = state.wide;
+  matRing.uniforms.uGlow.value = state.glow;
+  matBg.uniforms.uWide.value = state.wide;
+  matBg.uniforms.uGlow.value = state.glow;
+  matBg.uniforms.uCamPos.value.copy(camera.position);
+  matPetal.uniforms.uPetalT.value = state.petalT;
+  matLotus.uniforms.uLotusT.value = Math.min((T - state.lotusT0) / CONFIG.twoHand.lotusDuration, 1.2);
+
+  /* —— 聚焦景致 —— */
+  let focus = '纵览全局', best = 78;
+  for (const k of ['dashuifa', 'pengdao', 'bridge', 'fanghu', 'egg']) {
+    const L = CONFIG.lm[k];
+    const d = Math.hypot(camera.position.x - L.c.x, camera.position.z - L.c.z);
+    if (d < best) { best = d; focus = L.name; }
+  }
+  const fEl = document.getElementById('hFocus');
+  if (fEl.textContent !== focus) fEl.textContent = focus;
+
+  /* —— FPS —— */
+  state.frames++; state.fpsT += dt;
+  if (state.fpsT >= 0.5) {
+    state.fps = Math.round(state.frames / state.fpsT);
+    document.getElementById('hFps').textContent = state.fps + ' FPS';
+    state.frames = 0; state.fpsT = 0;
+  }
+
+  /* —— 手势识别（每帧） —— */
+  updateHandState(nowMs, dt);
+
+  renderer.render(scene, camera);
+}
+
+/* ============================================================================
+   ███ 启动
+============================================================================ */
+initThree();
+initLandmarkEffects();
+initRings();
+initBackground();
+initPetals();
+initLakeLotus();
+initHiddenEasterEgg();
+bindAudioUI();
+document.getElementById('hCount').textContent = TOTAL.toLocaleString();
+animate();
+initMediaPipe().finally(() => document.getElementById('loading').classList.add('hide'));
+setTimeout(() => document.getElementById('loading').classList.add('hide'), 9000);
+</script>
+</body>
+</html>
